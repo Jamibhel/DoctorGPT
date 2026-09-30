@@ -178,7 +178,7 @@ export class CDSSafetyEngine {
           offendingOrderTitle: candidateOrderTitle,
           conflictingItem: `Renal Lab: eGFR = ${egfrLab.value} mL/min (Severely Reduced)`,
           mechanism: "Metformin is cleared renally; eGFR < 30 mL/min carries boxed warning for fatal lactic acidosis.",
-          recommendation: "Contraindicated. Discontinue Metformin and manage glycemic control with insulin or safe oral alternatives.",
+          clinicalRecommendation: "Contraindicated. Discontinue Metformin and manage glycemic control with insulin or safe oral alternatives.",
           sourceRuleId: "RULE-RENAL-METFORMIN-EGFR30",
           canOverrideWithRationale: false
         });
@@ -199,7 +199,7 @@ export class CDSSafetyEngine {
         offendingOrderTitle: candidateOrderTitle,
         conflictingItem: `Active duplicate: ${exactDuplicate.title}`,
         mechanism: "Patient currently has an active order for identical medication/class.",
-        recommendation: "Verify whether this is intended as a dose adjustment or continuation before signing.",
+        clinicalRecommendation: "Verify whether this is intended as a dose adjustment or continuation before signing.",
         sourceRuleId: "RULE-DUPLICATE-MED",
         canOverrideWithRationale: true
       });

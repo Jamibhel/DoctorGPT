@@ -203,7 +203,7 @@ export function calculateNEWS2(
     totalScore,
     riskTier,
     clinicalResponse,
-    hasSingleRedAlert: hasSingleRed,
+    hasSingleParameterRedAlert: hasSingleRed,
     breakdown
   };
 }

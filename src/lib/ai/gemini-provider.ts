@@ -40,14 +40,22 @@ export class GeminiAIProvider implements AIProvider {
     }
 
     try {
+      const patientConditions = Array.isArray((patient as any)?.conditions)
+        ? (patient as any).conditions
+        : Array.isArray((patient as any)?.activeConditions)
+          ? (patient as any).activeConditions
+          : [];
+      const patientAllergies = Array.isArray((patient as any)?.allergies) ? (patient as any).allergies : [];
+      const patientMedications = Array.isArray((patient as any)?.medications) ? (patient as any).medications : [];
+      const patientRecentVitals = Array.isArray((patient as any)?.recentVitals) ? (patient as any).recentVitals : [];
       const model = this.genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
       const prompt = `You are a clinical documentation assistant for a physician.
 Patient Context:
-- Name: ${patient.firstName} ${patient.lastName}, DOB: ${patient.dob}, Gender: ${patient.gender}
-- Conditions: ${patient.conditions.join(", ")}
-- Allergies: ${patient.allergies.map(a => `${a.allergen} (${a.reaction})`).join(", ")}
-- Medications: ${patient.medications.map(m => `${m.name} ${m.dosage}`).join(", ")}
-- Recent Vitals: ${JSON.stringify(patient.recentVitals[0] || {})}
+- Name: ${patient.firstName ?? 'Patient'} ${patient.lastName ?? ''}, DOB: ${patient.dob ?? (patient as any)?.dateOfBirth ?? 'Unknown'}, Gender: ${patient.gender ?? (patient as any)?.sex ?? 'OTHER'}
+- Conditions: ${patientConditions.join(", ") || "None documented"}
+- Allergies: ${patientAllergies.map((a: any) => `${a.allergen ?? 'Unknown'} (${a.reaction ?? 'Unspecified'})`).join(", ") || "None reported"}
+- Medications: ${patientMedications.map((m: any) => `${m.name ?? 'Medication'} ${m.dosage ?? ''}`).join(", ") || "None on file"}
+- Recent Vitals: ${JSON.stringify(patientRecentVitals[0] || {})}
 
 Encounter Transcript:
 """

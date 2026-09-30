@@ -400,14 +400,15 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     consciousness: 'ALERT' | 'CVPU_VOICE' | 'CVPU_PAIN' | 'CVPU_UNRESPONSIVE';
     bloodGlucoseMgDl?: number;
   }): VitalSignObservation => {
+    const { patientId, encounterId, ...vitalEntry } = vitalsParams;
     const calc = calculateNEWS2(vitalsParams);
     const newObs: VitalSignObservation = {
       id: `Observation/obs-${Date.now()}`,
-      patientId: vitalsParams.patientId,
-      encounterId: vitalsParams.encounterId,
+      patientId,
+      encounterId,
       timestamp: new Date().toISOString(),
       recordedBy: currentStaff.id,
-      ...vitalsParams,
+      ...vitalEntry,
       news2Score: calc.totalScore,
       news2RiskTier: calc.riskTier
     };

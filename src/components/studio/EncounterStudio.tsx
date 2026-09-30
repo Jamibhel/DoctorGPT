@@ -162,7 +162,9 @@ export const EncounterStudio: React.FC<EncounterStudioProps> = ({
           <div>
             <div className="flex items-center space-x-2">
               <h2 className="text-lg font-bold text-slate-900">{patient.firstName} {patient.lastName}</h2>
-              <span className="text-xs text-slate-500 font-medium">({patient.age}yo {patient.gender})</span>
+              <span className="text-xs text-slate-500 font-medium">
+                ({patient.dob ? `${new Date().getFullYear() - new Date(patient.dob).getFullYear()}yo` : 'Age unknown'} {patient.gender})
+              </span>
             </div>
             <p className="text-xs text-slate-500 mt-0.5">
               MRN: <span className="font-mono text-slate-700">{patient.mrn}</span> • Active Encounter
@@ -174,7 +176,7 @@ export const EncounterStudio: React.FC<EncounterStudioProps> = ({
         {allergies.length > 0 && (
           <div className="px-3.5 py-2 rounded-2xl bg-red-50 border border-red-200 text-red-700 text-xs font-semibold flex items-center gap-2 self-start sm:self-center">
             <ShieldAlert className="w-4 h-4 text-red-600 shrink-0" />
-            <span>Allergy Alert: {allergies.map(a => a.substance).join(", ")} ({allergies[0].severity})</span>
+            <span>Allergy Alert: {allergies.map(a => a.allergen).join(", ")} ({allergies[0].severity})</span>
           </div>
         )}
       </div>

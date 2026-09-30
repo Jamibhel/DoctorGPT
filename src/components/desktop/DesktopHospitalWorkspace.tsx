@@ -82,8 +82,8 @@ export const DesktopHospitalWorkspace: React.FC = () => {
   } = useHospital();
 
   // Navigation State
-  // Active primary view: 'command' | 'chart' | 'beds' | 'cpoe' | 'scribe' | 'operations'
-  const [activeView, setActiveView] = useState<'command' | 'chart' | 'beds' | 'cpoe' | 'scribe' | 'operations'>('chart');
+  // Active primary view: 'command' | 'chart' | 'beds' | 'cpoe' | 'scribe' | 'operations' | 'ot'
+  const [activeView, setActiveView] = useState<'command' | 'chart' | 'beds' | 'cpoe' | 'scribe' | 'operations' | 'ot'>('chart');
   
   // Chart Sub-Tabs: 'flowsheet' | 'labs' | 'orders' | 'imaging' | 'notes' | 'timeline'
   const [chartSubTab, setChartSubTab] = useState<'flowsheet' | 'labs' | 'orders' | 'imaging' | 'notes' | 'timeline'>('flowsheet');
@@ -158,6 +158,48 @@ export const DesktopHospitalWorkspace: React.FC = () => {
     notes.filter(n => n.patientId === activePatientId),
     [notes, activePatientId]
   );
+
+  const otSchedule = useMemo(() => [
+    {
+      id: 'OT-105',
+      room: 'OR-05',
+      patient: activePatient.lastName + ', ' + activePatient.firstName,
+      mrn: activePatient.mrn,
+      procedure: 'Laparoscopic Cholecystectomy',
+      surgeon: 'Dr. T. Alvarez',
+      anesthetist: 'Dr. M. Lee',
+      status: 'IN_PROGRESS',
+      time: '07:50',
+      specialty: 'General Surgery',
+      external: false
+    },
+    {
+      id: 'OT-118',
+      room: 'OR-02',
+      patient: 'Nolan, Harriet',
+      mrn: 'MRN-40891',
+      procedure: 'Total Knee Arthroplasty',
+      surgeon: 'Dr. D. Patel',
+      anesthetist: 'Dr. C. Ruiz',
+      status: 'PREP',
+      time: '08:25',
+      specialty: 'Orthopaedics',
+      external: false
+    },
+    {
+      id: 'OT-221',
+      room: 'Satellite Suite',
+      patient: 'Foster, Mila',
+      mrn: 'MRN-21964',
+      procedure: 'Endoscopic Sinus Procedure',
+      surgeon: 'Dr. J. Osei',
+      anesthetist: 'Dr. S. Green',
+      status: 'TRANSPORT',
+      time: '09:10',
+      specialty: 'ENT',
+      external: true
+    }
+  ], [activePatient]);
 
   // Filtered Patients according to Omni-Search
   const filteredPatients = useMemo(() => {
@@ -250,24 +292,24 @@ export const DesktopHospitalWorkspace: React.FC = () => {
   const allergies = activePatient.allergies || [];
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] text-[#0F172A] flex font-sans antialiased selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen bg-[#F4F6F8] text-[#172033] flex antialiased selection:bg-[#2563EB] selection:text-white">
       
       {/* ==================================================== */}
       {/* 1. LEFT CLINICAL NAVIGATION RAIL (240px Fixed)       */}
       {/* ==================================================== */}
-      <aside className="w-60 bg-[#0F172A] text-slate-300 flex flex-col justify-between shrink-0 border-r border-slate-800 select-none z-30">
+      <aside className="w-60 bg-[#F8FAFC] text-[#475569] flex flex-col justify-between shrink-0 border-r border-[#D7DEE7] select-none z-30">
         <div>
           {/* Workstation Header */}
-          <div className="p-4 border-b border-slate-800 flex items-center space-x-3 bg-slate-950/60">
-            <div className="w-8 h-8 rounded-lg bg-blue-600 text-white flex items-center justify-center font-bold text-sm shadow-sm">
+          <div className="p-4 border-b border-[#D7DEE7] flex items-center space-x-3 bg-[#F8FAFC]">
+            <div className="w-8 h-8 rounded-md bg-[#2563EB] text-white flex items-center justify-center font-bold text-xs shadow-sm">
               <Building2 className="w-4 h-4" />
             </div>
             <div className="min-w-0">
               <div className="flex items-center space-x-1.5">
-                <span className="font-bold text-sm text-white tracking-tight">HospitalOS</span>
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" title="System Live" />
+                <span className="font-bold text-[15px] text-[#172033] tracking-tight">HospitalOS</span>
+                <span className="w-2 h-2 rounded-full bg-[#15803D]" title="System Live" />
               </div>
-              <p className="text-[10px] text-slate-400 truncate">St. Jude Metropolitan</p>
+              <p className="text-[10px] text-[#64748B] truncate">St. Jude Metropolitan</p>
             </div>
           </div>
 
@@ -289,6 +331,21 @@ export const DesktopHospitalWorkspace: React.FC = () => {
                 >
                   <LayoutGrid className="w-4 h-4 text-slate-400 shrink-0" />
                   <span>Command Center</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveView('ot')}
+                  className={`w-full text-left px-2.5 py-1.5 rounded-md flex items-center justify-between transition font-medium ${
+                    activeView === 'ot'
+                      ? 'bg-blue-600 text-white font-semibold'
+                      : 'hover:bg-slate-800/80 text-slate-300 hover:text-white'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Stethoscope className="w-4 h-4 text-indigo-400 shrink-0" />
+                    <span>OT / Theatre Board</span>
+                  </div>
+                  <span className="text-[10px] text-slate-400 font-mono">{otSchedule.length}</span>
                 </button>
 
                 <button
@@ -454,30 +511,30 @@ export const DesktopHospitalWorkspace: React.FC = () => {
         </div>
 
         {/* Bottom User / Attending Profile & Role Switcher */}
-        <div className="p-3 border-t border-slate-800 bg-slate-950/70 text-xs space-y-2">
+        <div className="p-3 border-t border-[#D7DEE7] bg-[#F8FAFC] text-xs space-y-2">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2.5 min-w-0">
-              <div className="w-7 h-7 rounded bg-slate-700 text-white flex items-center justify-center font-bold text-xs shrink-0">
+              <div className="w-7 h-7 rounded bg-[#1D4ED8] text-white flex items-center justify-center font-bold text-[10px] shrink-0">
                 {currentStaff.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
               </div>
               <div className="min-w-0">
-                <p className="font-semibold text-white text-xs truncate leading-tight">{currentStaff.name}</p>
-                <p className="text-[10px] text-slate-400 font-mono">{currentStaff.role} • 07:00-19:00</p>
+                <p className="font-semibold text-[#172033] text-xs truncate leading-tight">{currentStaff.name}</p>
+                <p className="text-[10px] text-[#64748B] font-mono">{currentStaff.role} • 07:00-19:00</p>
               </div>
             </div>
           </div>
 
-          {/* Quick RBAC Role Pill Selector */}
-          <div className="flex items-center justify-between gap-1 pt-1 border-t border-slate-800/80 text-[10px]">
-            <span className="text-slate-500 font-mono">ROLE:</span>
+          {/* Quick RBAC Role Switcher */}
+          <div className="flex items-center justify-between gap-1 pt-1 border-t border-[#D7DEE7] text-[10px]">
+            <span className="text-[#64748B] font-mono">ROLE:</span>
             {(['PHYSICIAN', 'NURSE', 'PHARMACIST'] as UserRole[]).map((r) => (
               <button
                 key={r}
                 onClick={() => switchUserRole(r)}
                 className={`px-1.5 py-0.5 rounded font-mono font-bold transition ${
                   currentStaff.role === r
-                    ? 'bg-blue-600 text-white'
-                    : 'bg-slate-800 text-slate-400 hover:text-white'
+                    ? 'bg-[#2563EB] text-white'
+                    : 'bg-white text-[#475569] border border-[#D7DEE7] hover:border-[#B7C2D0]'
                 }`}
               >
                 {r.slice(0, 3)}
@@ -525,67 +582,58 @@ export const DesktopHospitalWorkspace: React.FC = () => {
         )}
 
         {/* TOP CLINICAL WORKSTATION TOOLBAR */}
-        <header className="h-14 bg-white border-b border-[#E2E8F0] px-6 flex items-center justify-between gap-4 shrink-0 shadow-[0_1px_2px_rgba(0,0,0,0.03)] z-20">
-          
-          {/* Left Toolbar: Ward Selector & Census Badges */}
-          <div className="flex items-center space-x-3">
-            <div className="flex items-center space-x-2 bg-slate-50 border border-slate-200 px-2.5 py-1 rounded text-xs">
-              <span className="text-slate-500 font-semibold">Ward:</span>
-              <select
-                value={selectedWardFilter}
-                onChange={(e) => setSelectedWardFilter(e.target.value)}
-                className="bg-transparent font-bold text-slate-800 outline-none cursor-pointer"
-              >
-                <option value="ALL">All Hospital Units (System Wide)</option>
-                {departments.map(d => (
-                  <option key={d.id} value={d.id}>{d.name} ({d.floor}F)</option>
-                ))}
-              </select>
+        <header className="h-[58px] bg-white border-b border-[#D7DEE7] px-5 flex items-center justify-between gap-4 shrink-0 z-20">
+          <div className="flex items-center gap-4 min-w-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="text-[15px] font-bold tracking-tight text-[#172033]">HOSPITALOS</span>
+              <span className="text-[12px] text-[#64748B]">St. Jude Metropolitan</span>
             </div>
 
-            {/* Inpatient Census Pill */}
-            <div className="hidden xl:flex items-center space-x-2 text-xs font-mono">
-              <span className="px-2 py-0.5 rounded bg-slate-100 border border-slate-200 text-slate-700">
-                Census: <strong>{occupiedBedsCount}/{totalBedsCount}</strong> ({Math.round((occupiedBedsCount/totalBedsCount)*100)}%)
-              </span>
-              <span className="px-2 py-0.5 rounded bg-emerald-50 border border-emerald-200 text-emerald-700 font-semibold">
-                Available: {availableBedsCount}
-              </span>
-              {highRiskPatientsCount > 0 && (
-                <span className="px-2 py-0.5 rounded bg-red-50 border border-red-200 text-red-700 font-bold flex items-center gap-1">
-                  <ShieldAlert className="w-3 h-3 text-red-600" />
-                  <span>{highRiskPatientsCount} High NEWS2</span>
-                </span>
-              )}
+            <div className="hidden lg:flex items-center gap-3 text-[12px] text-[#475569]">
+              <div className="flex items-center gap-2 bg-[#F8FAFC] border border-[#D7DEE7] rounded px-2 py-1">
+                <span className="font-semibold text-[#172033]">WARD:</span>
+                <select
+                  value={selectedWardFilter}
+                  onChange={(e) => setSelectedWardFilter(e.target.value)}
+                  className="bg-transparent font-semibold text-[#172033] outline-none cursor-pointer"
+                >
+                  <option value="ALL">3F MED-SURG</option>
+                  {departments.map(d => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+              <span className="font-medium text-[#475569]">Hospital Census</span>
+              <span className="font-bold text-[#172033] font-mono">{occupiedBedsCount} / {totalBedsCount}</span>
+              <span className="text-[#64748B]">Critical Alerts</span>
+              <span className="font-bold text-[#172033] font-mono">{highRiskPatientsCount}</span>
             </div>
           </div>
 
-          {/* Center Toolbar: Omni-Search Bar */}
           <div className="flex-1 max-w-md relative">
             <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <Search className="w-4 h-4 text-[#64748B] absolute left-3 top-2.5" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search patient, MRN (e.g. 104829), bed 304-B, diagnosis..."
-                className="w-full bg-slate-50 hover:bg-slate-100/80 focus:bg-white border border-slate-200 focus:border-blue-500 rounded text-xs pl-9 pr-8 py-1.5 outline-none transition text-slate-900 placeholder:text-slate-400 font-medium"
+                placeholder="Search patient, MRN, bed, encounter..."
+                className="w-full bg-[#F8FAFC] border border-[#D7DEE7] focus:border-[#2563EB] focus:bg-white rounded-[4px] text-[12px] pl-9 pr-8 py-1.5 outline-none transition text-[#172033] placeholder:text-[#64748B]"
               />
               {searchQuery && (
                 <button
                   onClick={() => setSearchQuery('')}
-                  className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600 text-xs font-mono"
+                  className="absolute right-2.5 top-2 text-[#64748B] hover:text-[#172033] text-xs font-mono"
                 >
                   ✕
                 </button>
               )}
             </div>
 
-            {/* Omni-search instantaneous dropdown */}
             {searchQuery.trim() && (
-              <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-slate-200 rounded shadow-xl max-h-64 overflow-y-auto z-50 text-xs divide-y divide-slate-100">
+              <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#D7DEE7] rounded-[4px] shadow-lg max-h-64 overflow-y-auto z-50 text-xs divide-y divide-[#E5EDF5]">
                 {filteredPatients.length === 0 ? (
-                  <div className="p-3 text-center text-slate-400">No matching patients found</div>
+                  <div className="p-3 text-center text-[#64748B]">No matching patients found</div>
                 ) : (
                   filteredPatients.map(p => {
                     const enc = encounters.find(e => e.patientId === p.id && e.status === 'ACTIVE');
@@ -598,14 +646,14 @@ export const DesktopHospitalWorkspace: React.FC = () => {
                           setSearchQuery('');
                           setActiveView('chart');
                         }}
-                        className="p-2.5 hover:bg-blue-50/70 cursor-pointer flex items-center justify-between transition"
+                        className="p-2.5 hover:bg-[#EFF6FF] cursor-pointer flex items-center justify-between transition"
                       >
                         <div>
-                          <span className="font-bold text-slate-900">{p.lastName}, {p.firstName}</span>
-                          <span className="text-[11px] text-slate-500 font-mono ml-2">MRN: {p.mrn}</span>
-                          <p className="text-[10px] text-slate-500">{enc?.admittingDiagnosis || 'Inpatient Care'}</p>
+                          <span className="font-bold text-[#172033]">{p.lastName}, {p.firstName}</span>
+                          <span className="text-[11px] text-[#64748B] font-mono ml-2">MRN: {p.mrn}</span>
+                          <p className="text-[10px] text-[#64748B]">{enc?.admittingDiagnosis || 'Inpatient Care'}</p>
                         </div>
-                        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold">
+                        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#F8FAFC] text-[#475569] border border-[#D7DEE7]">
                           {b ? `Bed ${b.bedNumber}` : 'Outpatient'}
                         </span>
                       </div>
@@ -616,34 +664,29 @@ export const DesktopHospitalWorkspace: React.FC = () => {
             )}
           </div>
 
-          {/* Right Toolbar: Quick Action Buttons */}
-          <div className="flex items-center space-x-2 shrink-0">
+          <div className="flex items-center gap-2 shrink-0">
             <button
               onClick={() => {
                 setAdtInitialMode('ADMISSION');
                 setIsAdtModalOpen(true);
               }}
-              className="px-2.5 py-1.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-300/80 transition flex items-center gap-1.5"
-              title="Admit Patient"
+              className="px-2.5 py-1.5 rounded-[4px] bg-[#F8FAFC] hover:bg-[#EEF2F7] text-[#475569] text-[11px] font-semibold border border-[#D7DEE7] transition"
             >
-              <Plus className="w-3.5 h-3.5 text-slate-600" />
-              <span>ADT Admit</span>
+              ADT Admit
             </button>
 
             <button
               onClick={() => setIsCpoeModalOpen(true)}
-              className="px-3 py-1.5 rounded bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-[4px] bg-[#2563EB] hover:bg-[#1D4ED8] text-white text-[11px] font-bold transition"
             >
-              <Plus className="w-3.5 h-3.5" />
-              <span>+ CPOE Order</span>
+              + CPOE
             </button>
 
             <button
               onClick={() => setIsVitalsEntryOpen(true)}
-              className="px-3 py-1.5 rounded bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-xs transition flex items-center gap-1.5"
+              className="px-3 py-1.5 rounded-[4px] bg-[#15803D] hover:bg-[#166534] text-white text-[11px] font-bold transition"
             >
-              <Activity className="w-3.5 h-3.5" />
-              <span>+ Log Vitals</span>
+              + Vitals
             </button>
           </div>
         </header>
@@ -798,150 +841,112 @@ export const DesktopHospitalWorkspace: React.FC = () => {
           {/* ==================================================== */}
           {activeView === 'command' && (
             <div className="space-y-5">
-              
-              {/* Ward Capacity Progress Bars */}
-              <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs space-y-3">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500">
-                    Hospital Department Bed Utilization &amp; Telemetry Load
-                  </h2>
-                  <span className="text-xs font-mono text-slate-400">Systemwide Total: {occupiedBedsCount}/{totalBedsCount}</span>
+              <div className="flex items-center justify-between pb-1">
+                <div>
+                  <div className="text-[11px] uppercase tracking-[0.18em] text-[#64748B] font-semibold">Command Center</div>
+                  <h2 className="text-[20px] font-bold text-[#172033] mt-1">3F Med-Surg</h2>
                 </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {departments.map(dept => {
-                    const deptBeds = beds.filter(b => b.wardId === dept.id);
-                    const occupied = deptBeds.filter(b => b.status === 'OCCUPIED').length;
-                    const pct = Math.round((occupied / deptBeds.length) * 100);
-                    return (
-                      <div key={dept.id} className="p-3 rounded border border-slate-100 bg-slate-50 space-y-1.5">
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-bold text-slate-800">{dept.name} ({dept.floor}F)</span>
-                          <span className="font-mono text-slate-600 font-semibold">{occupied}/{deptBeds.length} ({pct}%)</span>
-                        </div>
-                        <div className="w-full bg-slate-200 h-2 rounded-full overflow-hidden">
-                          <div 
-                            className={`h-full transition-all ${
-                              pct >= 90 ? 'bg-red-500' : pct >= 75 ? 'bg-amber-500' : 'bg-blue-600'
-                            }`}
-                            style={{ width: `${pct}%` }}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
+                <div className="text-[12px] text-[#475569]">
+                  Wednesday, September 30, 2026 <span className="font-semibold text-[#172033]">• Shift 07:00–19:00</span>
                 </div>
               </div>
 
-              {/* Priority Clinical Triage Worklist (NEWS2 Sorted Table) */}
-              <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
-                <div className="p-3.5 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-                  <div className="flex items-center space-x-2">
-                    <Activity className="w-4 h-4 text-red-600" />
-                    <h3 className="font-bold text-xs uppercase tracking-wider text-slate-900">
-                      Inpatient Clinical Priority Triage Worklist (NEWS2 Sorted)
-                    </h3>
+              <div className="grid grid-cols-1 xl:grid-cols-[1.6fr_0.9fr] gap-5">
+                <div className="space-y-5">
+                  <div className="bg-white border border-[#D7DEE7] rounded-[6px] p-4">
+                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#E7ECF3]">
+                      <h3 className="text-[12px] uppercase tracking-[0.14em] font-bold text-[#475569]">Ward status</h3>
+                      <span className="text-[11px] font-mono text-[#64748B]">Census {occupiedBedsCount}/{totalBedsCount}</span>
+                    </div>
+
+                    <div className="grid grid-cols-4 gap-3 text-[11px]">
+                      {[
+                        ['ED', '12 patients'],
+                        ['ICU', '3 / 4'],
+                        ['MED-SURG', '18 / 20'],
+                        ['OR', '2 active']
+                      ].map(([label, value]) => (
+                        <div key={label} className="border border-[#D7DEE7] rounded-[4px] bg-[#F8FAFC] px-3 py-2">
+                          <div className="text-[#64748B] font-medium">{label}</div>
+                          <div className="mt-1 font-bold text-[#172033]">{value}</div>
+                        </div>
+                      ))}
+                    </div>
                   </div>
-                  <span className="text-xs text-slate-500 font-mono">
-                    {patients.length} active admitted encounters
-                  </span>
-                </div>
 
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
-                      <tr>
-                        <th className="py-2.5 px-3">Bed</th>
-                        <th className="py-2.5 px-3">Patient Name</th>
-                        <th className="py-2.5 px-3">MRN</th>
-                        <th className="py-2.5 px-3">Age / Sex</th>
-                        <th className="py-2.5 px-3">Diagnosis</th>
-                        <th className="py-2.5 px-3">NEWS2</th>
-                        <th className="py-2.5 px-3">SpO2</th>
-                        <th className="py-2.5 px-3">BP</th>
-                        <th className="py-2.5 px-3">Heart Rate</th>
-                        <th className="py-2.5 px-3">Code Status</th>
-                        <th className="py-2.5 px-3 text-right">Action</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {patients.map(p => {
-                        const enc = encounters.find(e => e.patientId === p.id && e.status === 'ACTIVE');
-                        const b = beds.find(bed => bed.id === enc?.activeBedId);
-                        const obs = observations.filter(o => o.patientId === p.id)[0];
-                        const isCurrent = p.id === activePatientId;
-
+                  <div className="bg-white border border-[#D7DEE7] rounded-[6px] overflow-hidden">
+                    <div className="flex items-center justify-between px-4 py-3 border-b border-[#E7ECF3] bg-[#F8FAFC]">
+                      <h3 className="text-[12px] uppercase tracking-[0.14em] font-bold text-[#475569]">Bed / patient matrix</h3>
+                      <span className="text-[11px] text-[#64748B] font-mono">Live occupancy</span>
+                    </div>
+                    <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {departments.filter(d => selectedWardFilter === 'ALL' || d.id === selectedWardFilter).map(dept => {
+                        const deptBeds = beds.filter(b => b.wardId === dept.id);
                         return (
-                          <tr 
-                            key={p.id}
-                            onClick={() => {
-                              setActivePatientId(p.id);
-                              setActiveView('chart');
-                            }}
-                            className={`hover:bg-blue-50/50 cursor-pointer transition ${
-                              isCurrent ? 'bg-blue-50/80 font-medium' : ''
-                            }`}
-                          >
-                            <td className="py-2.5 px-3 font-mono font-bold text-slate-800">
-                              {b ? b.bedNumber : 'Outpatient'}
-                            </td>
-                            <td className="py-2.5 px-3 font-bold text-slate-900">
-                              {p.lastName}, {p.firstName}
-                            </td>
-                            <td className="py-2.5 px-3 font-mono text-slate-500">{p.mrn}</td>
-                            <td className="py-2.5 px-3 text-slate-600">
-                              {new Date().getFullYear() - new Date(p.dateOfBirth).getFullYear()}yo {p.sex}
-                            </td>
-                            <td className="py-2.5 px-3 text-slate-700 max-w-[180px] truncate">
-                              {enc?.admittingDiagnosis || 'Routine Care'}
-                            </td>
-                            <td className="py-2.5 px-3">
-                              {obs ? (
-                                <span className={`px-2 py-0.5 rounded font-mono font-bold text-[11px] ${
-                                  obs.news2RiskTier === 'HIGH'
-                                    ? 'bg-red-100 text-red-800 border border-red-300'
-                                    : obs.news2RiskTier === 'MEDIUM'
-                                    ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                                    : 'bg-emerald-100 text-emerald-800 border border-emerald-300'
-                                }`}>
-                                  {obs.news2Score} ({obs.news2RiskTier})
-                                </span>
-                              ) : (
-                                <span className="text-slate-400 font-mono">--</span>
-                              )}
-                            </td>
-                            <td className="py-2.5 px-3 font-mono">
-                              {obs ? `${obs.spO2}%` : '--'}
-                            </td>
-                            <td className="py-2.5 px-3 font-mono">
-                              {obs ? `${obs.systolicBP}/${obs.diastolicBP}` : '--'}
-                            </td>
-                            <td className="py-2.5 px-3 font-mono">
-                              {obs ? `${obs.heartRate} bpm` : '--'}
-                            </td>
-                            <td className="py-2.5 px-3">
-                              <span className="px-1.5 py-0.2 rounded text-[10px] bg-slate-100 text-slate-700 font-semibold">
-                                {enc?.codeStatus || 'FULL_CODE'}
-                              </span>
-                            </td>
-                            <td className="py-2.5 px-3 text-right">
-                              <button
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setActivePatientId(p.id);
-                                  setActiveView('chart');
-                                }}
-                                className="px-2 py-1 rounded bg-blue-600 hover:bg-blue-700 text-white font-bold text-[11px]"
-                              >
-                                Open Chart
-                              </button>
-                            </td>
-                          </tr>
+                          <div key={dept.id} className="border border-[#D7DEE7] rounded-[4px] overflow-hidden">
+                            <div className="px-3 py-2 bg-[#F8FAFC] border-b border-[#E7ECF3] text-[11px] font-bold text-[#475569] uppercase tracking-[0.12em]">{dept.name}</div>
+                            <div className="grid grid-cols-2 gap-2 p-3">
+                              {deptBeds.slice(0, 4).map(bed => {
+                                const p = patients.find(patient => patient.id === bed.currentPatientId);
+                                const status = bed.status.toLowerCase();
+                                return (
+                                  <button
+                                    key={bed.id}
+                                    onClick={() => p && setActivePatientId(p.id)}
+                                    className={`text-left rounded-[4px] border p-2 ${
+                                      status === 'occupied'
+                                        ? 'bg-[#EFF6FF] border-[#BFDBFE]'
+                                        : status === 'available'
+                                        ? 'bg-[#F0FDF4] border-[#BBF7D0]'
+                                        : 'bg-[#FFFBEB] border-[#FCD34D]'
+                                    }`}
+                                  >
+                                    <div className="flex items-center justify-between mb-1">
+                                      <span className="font-bold text-[#172033] text-[11px]">{bed.bedNumber}</span>
+                                      <span className="text-[9px] uppercase tracking-[0.08em] font-semibold text-[#475569]">{status}</span>
+                                    </div>
+                                    <div className="text-[11px] font-semibold text-[#172033] truncate">{p ? `${p.lastName}, ${p.firstName}` : 'Available'}</div>
+                                    <div className="text-[10px] text-[#64748B] font-mono mt-1">{p ? `NEWS2 ${observations.find(o => o.patientId === p.id)?.news2Score ?? 0}` : 'Ready for admission'}</div>
+                                  </button>
+                                );
+                              })}
+                            </div>
+                          </div>
                         );
                       })}
-                    </tbody>
-                  </table>
+                    </div>
+                  </div>
                 </div>
+
+                <aside className="bg-white border border-[#D7DEE7] rounded-[6px] overflow-hidden">
+                  <div className="px-4 py-3 border-b border-[#E7ECF3] bg-[#F8FAFC]">
+                    <h3 className="text-[12px] uppercase tracking-[0.14em] font-bold text-[#475569]">Priority patients</h3>
+                  </div>
+                  <div className="p-3 space-y-2">
+                    {patients.slice(0, 5).map(p => {
+                      const enc = encounters.find(e => e.patientId === p.id && e.status === 'ACTIVE');
+                      const bed = beds.find(b => b.currentPatientId === p.id);
+                      const obs = observations.find(o => o.patientId === p.id);
+                      return (
+                        <button
+                          key={p.id}
+                          onClick={() => {
+                            setActivePatientId(p.id);
+                            setActiveView('chart');
+                          }}
+                          className="w-full text-left rounded-[4px] border border-[#E7ECF3] bg-[#F8FAFC] px-3 py-2 hover:border-[#BFDBFE] transition"
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="font-bold text-[#172033] text-[12px]">{bed?.bedNumber || 'Ward'} • {p.lastName}, {p.firstName}</span>
+                            <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#EFF6FF] text-[#1D4ED8]">NEWS2 {obs?.news2Score ?? 0}</span>
+                          </div>
+                          <div className="mt-1 text-[11px] text-[#475569]">{enc?.admittingDiagnosis || 'Clinical review'}</div>
+                          <div className="mt-1 text-[10px] text-[#64748B]">{obs ? `Last vitals ${new Date(obs.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Awaiting review'}</div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                </aside>
               </div>
             </div>
           )}
@@ -1139,8 +1144,8 @@ export const DesktopHospitalWorkspace: React.FC = () => {
 
               {/* SUB-TAB 2: DIAGNOSTIC LABS TABLE */}
               {chartSubTab === 'labs' && (
-                <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden space-y-3">
-                  <div className="p-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
+                <div className="bg-white rounded-[6px] border border-[#D7DEE7] overflow-hidden space-y-3">
+                  <div className="p-3 border-b border-[#E7ECF3] flex items-center justify-between bg-[#F8FAFC]">
                     <div className="flex items-center space-x-3">
                       <Microscope className="w-4 h-4 text-emerald-600" />
                       <h3 className="font-bold text-xs uppercase tracking-wider text-slate-900">
@@ -1433,7 +1438,7 @@ export const DesktopHospitalWorkspace: React.FC = () => {
                 .map(dept => {
                   const deptBeds = beds.filter(b => b.wardId === dept.id);
                   return (
-                    <div key={dept.id} className="bg-white rounded-lg border border-slate-200 shadow-xs p-4 space-y-3">
+                    <div key={dept.id} className="bg-white rounded-[6px] border border-[#D7DEE7] p-4 space-y-3">
                       <div className="flex items-center justify-between border-b border-slate-100 pb-2">
                         <div className="flex items-center space-x-2">
                           <span className="w-6 h-6 rounded bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xs font-mono">
@@ -1520,7 +1525,7 @@ export const DesktopHospitalWorkspace: React.FC = () => {
           {/* ==================================================== */}
           {activeView === 'cpoe' && (
             <div className="space-y-5">
-              <div className="flex items-center justify-between bg-white p-3.5 rounded-lg border border-slate-200 shadow-xs">
+              <div className="flex items-center justify-between bg-white p-3.5 rounded-[6px] border border-[#D7DEE7]">
                 <div>
                   <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">
                     CPOE Inpatient Order Management &amp; Verification Pipeline
@@ -1537,7 +1542,7 @@ export const DesktopHospitalWorkspace: React.FC = () => {
               </div>
 
               {/* All System Active Orders Table */}
-              <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
+              <div className="bg-white rounded-[6px] border border-[#D7DEE7] overflow-hidden">
                 <table className="w-full text-xs text-left">
                   <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
                     <tr>
@@ -1606,7 +1611,7 @@ export const DesktopHospitalWorkspace: React.FC = () => {
           {/* ==================================================== */}
           {activeView === 'scribe' && (
             <div className="space-y-5">
-              <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex items-center justify-between">
+              <div className="bg-white p-4 rounded-[6px] border border-[#D7DEE7] flex items-center justify-between">
                 <div>
                   <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
                     <Sparkles className="w-4 h-4 text-emerald-600" />
@@ -1644,7 +1649,7 @@ export const DesktopHospitalWorkspace: React.FC = () => {
               <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
                 
                 {/* Left: Dialogue Transcript */}
-                <div className="lg:col-span-5 bg-white rounded-lg border border-slate-200 shadow-xs p-4 h-[520px] flex flex-col">
+                <div className="lg:col-span-5 bg-white rounded-[6px] border border-[#D7DEE7] p-4 h-[520px] flex flex-col">
                   <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
                     <span className="font-bold text-xs text-slate-900">Audio Dialogue Transcript</span>
                     <span className="text-[11px] text-slate-400 font-mono">{selectedPreset.dialogue.length} turns</span>
@@ -1666,7 +1671,7 @@ export const DesktopHospitalWorkspace: React.FC = () => {
                 </div>
 
                 {/* Right: Synthesized SOAP Note with Commit */}
-                <div className="lg:col-span-7 bg-white rounded-lg border border-slate-200 shadow-xs p-4 h-[520px] flex flex-col justify-between">
+                <div className="lg:col-span-7 bg-white rounded-[6px] border border-[#D7DEE7] p-4 h-[520px] flex flex-col justify-between">
                   <div>
                     <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
                       <span className="font-bold text-xs text-slate-900">Synthesized Structured Note</span>
@@ -1718,11 +1723,154 @@ export const DesktopHospitalWorkspace: React.FC = () => {
           )}
 
           {/* ==================================================== */}
+          {/* VIEW: OPERATING THEATRE / EXTERNAL OT BOARD          */}
+          {/* ==================================================== */}
+          {activeView === 'ot' && (
+            <div className="space-y-5">
+              <div className="bg-white p-4 rounded-[6px] border border-[#D7DEE7] flex items-center justify-between">
+                <div>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
+                    <Stethoscope className="w-4 h-4 text-indigo-600" />
+                    <span>Operating Theatre &amp; External Procedure Board</span>
+                  </h2>
+                  <p className="text-[11px] text-slate-500">In-house OR schedule with satellite and external case coordination</p>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-slate-500 font-mono bg-slate-100 border border-slate-200 rounded px-2 py-1">3 live rooms</span>
+                  <button
+                    onClick={() => setActiveView('operations')}
+                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded shadow-xs"
+                  >
+                    View emergency ops
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                {[
+                  ['Scheduled', '07:00', 'Reconciliation'],
+                  ['In progress', '03', 'Live rooms'],
+                  ['Satellite', '01', 'External transfer'],
+                  ['Recovery', '14', 'PACU handoff']
+                ].map(([label, value, sub]) => (
+                  <div key={label} className="bg-white p-3.5 rounded-[6px] border border-[#D7DEE7]">
+                    <div className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-bold">{label}</div>
+                    <div className="mt-2 text-[22px] font-bold text-slate-900">{value}</div>
+                    <div className="text-[11px] text-slate-500">{sub}</div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-4">
+                <div className="bg-white rounded-[6px] border border-[#D7DEE7] p-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-[#E7ECF3] mb-3">
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-slate-900">External transfer network</h3>
+                    <span className="text-[10px] font-mono text-slate-500">Satellite / mobile cases</span>
+                  </div>
+
+                  <div className="space-y-2.5 text-xs">
+                    {[
+                      ['Ambulatory imaging unit', 'Patient transfer ready • 07:45', 'green'],
+                      ['Community cath lab', 'Transport team dispatched • 08:05', 'amber'],
+                      ['Outreach ENT clinic', 'Procedure suite confirmed • 09:10', 'blue']
+                    ].map(([title, detail, status]) => (
+                      <div key={title} className="flex items-center justify-between gap-3 rounded border border-slate-200 bg-slate-50 p-2.5">
+                        <div>
+                          <div className="font-bold text-slate-900">{title}</div>
+                          <div className="text-[11px] text-slate-500">{detail}</div>
+                        </div>
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                          status === 'green' ? 'bg-emerald-100 text-emerald-800' :
+                          status === 'amber' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
+                        }`}>
+                          {status === 'green' ? 'READY' : status === 'amber' ? 'IN TRANSIT' : 'CONFIRMED'}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="bg-white rounded-[6px] border border-[#D7DEE7] p-4">
+                  <div className="flex items-center justify-between pb-2 border-b border-[#E7ECF3] mb-3">
+                    <h3 className="font-bold text-xs uppercase tracking-wider text-slate-900">Transfer controls</h3>
+                    <Share2 className="w-4 h-4 text-indigo-600" />
+                  </div>
+
+                  <div className="space-y-3 text-xs">
+                    <button className="w-full text-left p-2.5 rounded border border-indigo-200 bg-indigo-50 text-indigo-800 font-semibold">
+                      Launch external theatre checklist
+                    </button>
+                    <button className="w-full text-left p-2.5 rounded border border-slate-200 bg-slate-50 text-slate-700 font-medium">
+                      Notify retrieval team and receiving unit
+                    </button>
+                    <button className="w-full text-left p-2.5 rounded border border-emerald-200 bg-emerald-50 text-emerald-800 font-semibold">
+                      Confirm patient handoff documentation
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-[6px] border border-[#D7DEE7] overflow-hidden">
+                <div className="px-4 py-3 border-b border-[#E7ECF3] bg-[#F8FAFC] flex items-center justify-between">
+                  <h3 className="text-[12px] uppercase tracking-[0.14em] font-bold text-[#475569]">Case docket</h3>
+                  <span className="text-[11px] text-slate-500 font-mono">OR 01-06 • External transfer network</span>
+                </div>
+
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
+                      <tr>
+                        <th className="py-2.5 px-3">Suite</th>
+                        <th className="py-2.5 px-3">Patient</th>
+                        <th className="py-2.5 px-3">Procedure</th>
+                        <th className="py-2.5 px-3">Surgeon</th>
+                        <th className="py-2.5 px-3">Anesthesia</th>
+                        <th className="py-2.5 px-3">Time</th>
+                        <th className="py-2.5 px-3">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100">
+                      {otSchedule.map(caseItem => (
+                        <tr key={caseItem.id} className="hover:bg-slate-50">
+                          <td className="py-2.5 px-3 font-bold text-slate-900 font-mono">{caseItem.room}</td>
+                          <td className="py-2.5 px-3">
+                            <div className="font-bold text-slate-900">{caseItem.patient}</div>
+                            <div className="text-[10px] text-slate-500 font-mono">{caseItem.mrn}</div>
+                          </td>
+                          <td className="py-2.5 px-3">
+                            <div className="font-semibold text-slate-800">{caseItem.procedure}</div>
+                            <div className="text-[10px] text-slate-500">{caseItem.specialty}</div>
+                          </td>
+                          <td className="py-2.5 px-3 text-slate-700">{caseItem.surgeon}</td>
+                          <td className="py-2.5 px-3 text-slate-700">{caseItem.anesthetist}</td>
+                          <td className="py-2.5 px-3 font-mono text-slate-600">{caseItem.time}</td>
+                          <td className="py-2.5 px-3">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
+                              caseItem.status === 'IN_PROGRESS'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : caseItem.status === 'PREP'
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-indigo-100 text-indigo-800'
+                            }`}>
+                              {caseItem.external ? 'EXTERNAL' : caseItem.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ==================================================== */}
           {/* VIEW: OPERATIONS & EMERGENCY DRILLS                  */}
           {/* ==================================================== */}
           {activeView === 'operations' && (
             <div className="space-y-5">
-              <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-xs flex items-center justify-between">
+              <div className="bg-white p-4 rounded-[6px] border border-[#D7DEE7] flex items-center justify-between">
                 <div>
                   <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">
                     Hospital Operations &amp; Emergency Management
@@ -1749,7 +1897,7 @@ export const DesktopHospitalWorkspace: React.FC = () => {
               </div>
 
               {/* Staff Roster Grid */}
-              <div className="bg-white rounded-lg border border-slate-200 shadow-xs p-4 space-y-3">
+              <div className="bg-white rounded-[6px] border border-[#D7DEE7] p-4 space-y-3">
                 <h3 className="font-bold text-xs uppercase tracking-wider text-slate-900">
                   On-Duty Staff &amp; Coverage Pager Schedule
                 </h3>

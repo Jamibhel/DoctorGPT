@@ -1,6 +1,65 @@
 import { Patient, SoapNote, ActionItem, DocumentType, GeneratedDocument } from "@/types/clinical";
 import { AIProvider } from "./provider-interface";
 
+type LegacyOrHospitalPatient = Partial<Patient> & {
+  activeConditions?: string[];
+  sex?: 'M' | 'F' | 'OTHER';
+  dateOfBirth?: string;
+  gender?: 'M' | 'F' | 'OTHER';
+  medications?: Array<{ name?: string; dosage?: string; frequency?: string; indication?: string }>;
+  recentVitals?: Array<{ date?: string; bloodPressure?: string; heartRate?: number; oxygenSaturation?: number; bmi?: number }>;
+  pastEncounters?: Array<{ type?: string; date?: string }>;
+  outstandingInvestigations?: string[];
+  mrn?: string;
+};
+
+const normalizePatientRecord = (patient: LegacyOrHospitalPatient | null | undefined) => {
+  const conditions = Array.isArray(patient?.conditions)
+    ? patient!.conditions
+    : Array.isArray(patient?.activeConditions)
+      ? patient.activeConditions
+      : [];
+
+  const normalizedAllergies = Array.isArray(patient?.allergies)
+    ? patient.allergies.map((a: any) => ({
+        allergen: a?.allergen ?? 'Unknown allergen',
+        reaction: a?.reaction ?? 'Unspecified reaction',
+        severity: a?.severity ?? 'MODERATE'
+      }))
+    : [];
+
+  const normalizedMedications = Array.isArray(patient?.medications)
+    ? patient.medications.map((m: any) => ({
+        name: m?.name ?? 'Medication',
+        dosage: m?.dosage ?? '',
+        frequency: m?.frequency ?? 'as directed',
+        indication: m?.indication ?? 'clinical management'
+      }))
+    : [];
+
+  const normalizedVitals = Array.isArray(patient?.recentVitals)
+    ? patient.recentVitals
+    : [];
+
+  const normalizedPastEncounters = Array.isArray(patient?.pastEncounters)
+    ? patient.pastEncounters
+    : [];
+
+  return {
+    firstName: patient?.firstName ?? 'Patient',
+    lastName: patient?.lastName ?? '',
+    mrn: patient?.mrn ?? 'MRN-UNKNOWN',
+    dob: patient?.dob ?? patient?.dateOfBirth ?? 'Unknown',
+    gender: (patient?.gender ?? patient?.sex ?? 'OTHER') as 'M' | 'F' | 'OTHER',
+    conditions,
+    allergies: normalizedAllergies,
+    medications: normalizedMedications,
+    recentVitals: normalizedVitals,
+    outstandingInvestigations: Array.isArray(patient?.outstandingInvestigations) ? patient.outstandingInvestigations : [],
+    pastEncounters: normalizedPastEncounters
+  };
+};
+
 export class MockAIProvider implements AIProvider {
   name = "Synthea Clinical Mock Engine ($0 Zero-Spend Local)";
   isAvailable = true;
@@ -39,8 +98,10 @@ export class MockAIProvider implements AIProvider {
   ): Promise<SoapNote> {
     await new Promise((r) => setTimeout(r, 700));
 
-    const isDiabetes = patient.conditions.some(c => c.toLowerCase().includes("diabet") || c.toLowerCase().includes("glucose"));
-    const isCopd = patient.conditions.some(c => c.toLowerCase().includes("copd") || c.toLowerCase().includes("pulmonary"));
+    const safePatient = normalizePatientRecord(patient as LegacyOrHospitalPatient);
+    const conditions = safePatient.conditions ?? [];
+    const isDiabetes = conditions.some(c => c.toLowerCase().includes("diabet") || c.toLowerCase().includes("glucose"));
+    const isCopd = conditions.some(c => c.toLowerCase().includes("copd") || c.toLowerCase().includes("pulmonary"));
 
     if (isDiabetes) {
       return {
@@ -97,14 +158,14 @@ Physical Exam: Mild distant breath sounds with faint scattered expiratory wheeze
       };
     } else {
       return {
-        subjective: `Patient ${patient.firstName} ${patient.lastName} (${patient.gender}, ${patient.dob}) presents for follow-up review. Pertinent complaints and history discussed regarding: ${transcriptText.slice(0, 200)}...`,
-        objective: `Patient appears comfortable in no acute distress. Vital signs reviewed: BP ${patient.recentVitals[0]?.bloodPressure || '120/80'}, HR ${patient.recentVitals[0]?.heartRate || 72} bpm, SpO2 ${patient.recentVitals[0]?.oxygenSaturation || 98}%. Examination findings consistent with baseline chronic history.`,
+        subjective: `Patient ${safePatient.firstName} ${safePatient.lastName} (${safePatient.gender}, ${safePatient.dob}) presents for follow-up review. Pertinent complaints and history discussed regarding: ${transcriptText.slice(0, 200)}...`,
+        objective: `Patient appears comfortable in no acute distress. Vital signs reviewed: BP ${safePatient.recentVitals[0]?.bloodPressure || '120/80'}, HR ${safePatient.recentVitals[0]?.heartRate || 72} bpm, SpO2 ${safePatient.recentVitals[0]?.oxygenSaturation || 98}%. Examination findings consistent with baseline chronic history.`,
         assessment: `1. Clinical status stable under current therapeutic regimen.
 2. Diagnostic monitoring indicated for routine preventive health maintenance.`,
         plan: `1. Continue current maintenance medications as tolerated.
 2. Diagnostic screening and routine interval laboratory surveillance ordered.
 3. Routine follow-up scheduled.`,
-        summary: `Outpatient consultation completed for ${patient.firstName} ${patient.lastName}. Regimen reviewed and ongoing management confirmed.`,
+        summary: `Outpatient consultation completed for ${safePatient.firstName} ${safePatient.lastName}. Regimen reviewed and ongoing management confirmed.`,
         citations: [
           { id: "c1", quote: transcriptText.slice(0, 80), source: "transcript", mappedSection: "subjective" }
         ],
@@ -120,8 +181,10 @@ Physical Exam: Mild distant breath sounds with faint scattered expiratory wheeze
   ): Promise<ActionItem[]> {
     await new Promise((r) => setTimeout(r, 400));
 
-    const isDiabetes = patient.conditions.some(c => c.toLowerCase().includes("diabet") || c.toLowerCase().includes("glucose"));
-    const isCopd = patient.conditions.some(c => c.toLowerCase().includes("copd") || c.toLowerCase().includes("pulmonary"));
+    const safePatient = normalizePatientRecord(patient as LegacyOrHospitalPatient);
+    const conditions = safePatient.conditions ?? [];
+    const isDiabetes = conditions.some(c => c.toLowerCase().includes("diabet") || c.toLowerCase().includes("glucose"));
+    const isCopd = conditions.some(c => c.toLowerCase().includes("copd") || c.toLowerCase().includes("pulmonary"));
 
     if (isDiabetes) {
       return [
@@ -233,6 +296,7 @@ Physical Exam: Mild distant breath sounds with faint scattered expiratory wheeze
   ): Promise<GeneratedDocument> {
     await new Promise((r) => setTimeout(r, 500));
 
+    const safePatient = normalizePatientRecord(patient as LegacyOrHospitalPatient);
     const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
     if (docType === 'REFERRAL_LETTER') {
@@ -247,21 +311,21 @@ Date: ${today}
 
 TO: ${referralAction.recipientOrTarget}
 FROM: Dr. Alexander Thorne, MD (Attending Physician)
-RE: Clinical Referral for ${patient.firstName} ${patient.lastName}
-DOB: ${patient.dob} | MRN: ${patient.mrn}
+RE: Clinical Referral for ${safePatient.firstName} ${safePatient.lastName}
+DOB: ${safePatient.dob} | MRN: ${safePatient.mrn}
 
 CLINICAL REASON FOR REFERRAL:
 ${referralAction.title} - ${referralAction.description}
 
 PERTINENT HISTORY & BACKGROUND:
-${patient.firstName} is a ${patient.dob ? '58-year-old' : ''} patient with known history of:
-${patient.conditions.map(c => `• ${c}`).join('\n')}
+${safePatient.firstName} is a ${safePatient.dob ? '58-year-old' : ''} patient with known history of:
+${safePatient.conditions.map(c => `• ${c}`).join('\n')}
 
 ALLERGIES:
-${patient.allergies.map(a => `• ${a.allergen} (${a.severity}): ${a.reaction}`).join('\n') || 'None reported'}
+${safePatient.allergies.map(a => `• ${a.allergen} (${a.severity}): ${a.reaction}`).join('\n') || 'None reported'}
 
 CURRENT MEDICATIONS:
-${patient.medications.map(m => `• ${m.name} ${m.dosage} - ${m.frequency}`).join('\n')}
+${safePatient.medications.map(m => `• ${m.name} ${m.dosage} - ${m.frequency}`).join('\n')}
 
 RECENT CLINICAL ENCOUNTER SUMMARY:
 ${note.summary}
@@ -287,13 +351,13 @@ Department of Medicine, Clinical Workbench AI Prototype`;
     } else if (docType === 'PATIENT_INSTRUCTIONS') {
       const content = `AFTER-VISIT CARE & PATIENT INSTRUCTIONS
 Date: ${today}
-Patient: ${patient.firstName} ${patient.lastName} (MRN: ${patient.mrn})
+Patient: ${safePatient.firstName} ${safePatient.lastName} (MRN: ${safePatient.mrn})
 
-Dear ${patient.firstName},
+Dear ${safePatient.firstName},
 Thank you for coming in today. Here is a summary of what we discussed during your visit, your updated care plan, and what you should watch out for at home.
 
 1. YOUR CURRENT CARE PLAN & MEDICATION REMINDERS:
-${patient.medications.map(m => `• ${m.name} (${m.dosage}): Take ${m.frequency.toLowerCase()} for ${m.indication}.`).join('\n')}
+${safePatient.medications.map(m => `• ${m.name} (${m.dosage}): Take ${m.frequency.toLowerCase()} for ${m.indication}.`).join('\n')}
 
 2. IMPORTANT AT-HOME INSTRUCTIONS:
 • Daily Foot Checks: Inspect the tops, soles, and sides of both feet every day using a handheld mirror.
@@ -322,7 +386,7 @@ Clinic Phone: +1 (555) 019-2834 | Emergency Services: 911`;
     } else {
       const content = `CLINICAL HANDOVER SUMMARY
 Date: ${today}
-Patient: ${patient.firstName} ${patient.lastName} (MRN: ${patient.mrn})
+Patient: ${safePatient.firstName} ${safePatient.lastName} (MRN: ${safePatient.mrn})
 
 PRIMARY DIAGNOSIS & ENCOUNTER PURPOSE:
 ${note.summary}
@@ -352,11 +416,12 @@ Attending: Dr. Alexander Thorne, MD`;
     question: string
   ): Promise<{ answer: string; evidence: string[] }> {
     await new Promise((r) => setTimeout(r, 450));
+    const safePatient = normalizePatientRecord(patient as LegacyOrHospitalPatient);
     const q = question.toLowerCase();
 
     if (q.includes("hba1c") || q.includes("sugar") || q.includes("glucose")) {
       return {
-        answer: `${patient.firstName}'s fasting blood sugars have been documented between 175 and 195 mg/dL. Her routine HbA1c is currently due (scheduled for September 2026), with the previous encounter noting suboptimal glycemic control and recommendation for updated testing.`,
+        answer: `${safePatient.firstName}'s fasting blood sugars have been documented between 175 and 195 mg/dL. Her routine HbA1c is currently due (scheduled for September 2026), with the previous encounter noting suboptimal glycemic control and recommendation for updated testing.`,
         evidence: [
           "Past Encounter (2026-06-10): Suboptimal glycemic control in T2DM. Fasting sugars 170-195 mg/dL.",
           "Outstanding Investigations: HbA1c & Fasting Metabolic Panel due September 2026.",
@@ -366,23 +431,23 @@ Attending: Dr. Alexander Thorne, MD`;
     }
 
     if (q.includes("allerg") || q.includes("penicillin") || q.includes("reaction")) {
-      const allergyList = patient.allergies.map(a => `${a.allergen} (${a.severity}: ${a.reaction})`).join(", ");
+      const allergyList = safePatient.allergies.map(a => `${a.allergen} (${a.severity}: ${a.reaction})`).join(", ");
       return {
-        answer: `${patient.firstName} has documented allergies to: ${allergyList || "None reported"}. Autonomous antibiotic prescribing must strictly respect these contraindications.`,
-        evidence: patient.allergies.map(a => `Allergy Record: ${a.allergen} - ${a.reaction} (${a.severity})`)
+        answer: `${safePatient.firstName} has documented allergies to: ${allergyList || "None reported"}. Autonomous antibiotic prescribing must strictly respect these contraindications.`,
+        evidence: safePatient.allergies.map(a => `Allergy Record: ${a.allergen} - ${a.reaction} (${a.severity})`)
       };
     }
 
     if (q.includes("medication") || q.includes("drugs") || q.includes("dose")) {
-      const medList = patient.medications.map(m => `${m.name} ${m.dosage} (${m.frequency})`).join(", ");
+      const medList = safePatient.medications.map(m => `${m.name} ${m.dosage} (${m.frequency})`).join(", ");
       return {
-        answer: `Active medications for ${patient.firstName} are: ${medList}.`,
-        evidence: patient.medications.map(m => `Active Rx: ${m.name} ${m.dosage} ${m.frequency} for ${m.indication}`)
+        answer: `Active medications for ${safePatient.firstName} are: ${medList}.`,
+        evidence: safePatient.medications.map(m => `Active Rx: ${m.name} ${m.dosage} ${m.frequency} for ${m.indication}`)
       };
     }
 
     if (q.includes("vital") || q.includes("bp") || q.includes("blood pressure")) {
-      const latest = patient.recentVitals[0];
+      const latest = safePatient.recentVitals[0];
       return {
         answer: `Most recent vitals on ${latest?.date || 'record'}: Blood Pressure: ${latest?.bloodPressure || 'N/A'}, Heart Rate: ${latest?.heartRate || 'N/A'} bpm, SpO2: ${latest?.oxygenSaturation || 'N/A'}%, BMI: ${latest?.bmi || 'N/A'}.`,
         evidence: [
@@ -392,10 +457,10 @@ Attending: Dr. Alexander Thorne, MD`;
     }
 
     return {
-      answer: `Based on ${patient.firstName}'s longitudinal record, active conditions include ${patient.conditions.join(", ")}. She is managed with ${patient.medications.length} active prescriptions and has ${patient.outstandingInvestigations.length} outstanding investigations due.`,
+      answer: `Based on ${safePatient.firstName}'s longitudinal record, active conditions include ${safePatient.conditions.join(", ") || "No documented conditions"}. She is managed with ${safePatient.medications.length} active prescriptions and has ${safePatient.outstandingInvestigations.length} outstanding investigations due.`,
       evidence: [
-        `Conditions: ${patient.conditions.join("; ")}`,
-        `Recent visit: ${patient.pastEncounters[0]?.type || "N/A"} (${patient.pastEncounters[0]?.date || "N/A"})`
+        `Conditions: ${safePatient.conditions.join("; ") || "None documented"}`,
+        `Recent visit: ${safePatient.pastEncounters[0]?.type || "N/A"} (${safePatient.pastEncounters[0]?.date || "N/A"})`
       ]
     };
   }
