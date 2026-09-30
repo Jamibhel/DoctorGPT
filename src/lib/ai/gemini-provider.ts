@@ -4,16 +4,21 @@ import { AIProvider } from "./provider-interface";
 import { MockAIProvider } from "./mock-provider";
 
 export class GeminiAIProvider implements AIProvider {
-  name = "Google Gemini Free-Tier (Clinical Workflow Adapter)";
+  name = "Google Gemini Clinical Intelligence";
   isAvailable = false;
   private genAI?: GoogleGenerativeAI;
   private fallbackMock = new MockAIProvider();
 
   constructor(apiKey?: string) {
-    const key = apiKey || process.env.NEXT_PUBLIC_GEMINI_API_KEY || process.env.GEMINI_API_KEY;
+    const key = apiKey || process.env.GEMINI_API_KEY;
+
     if (key && key.trim().length > 0) {
-      this.genAI = new GoogleGenerativeAI(key);
-      this.isAvailable = true;
+      try {
+        this.genAI = new GoogleGenerativeAI(key);
+        this.isAvailable = true;
+      } catch (e) {
+        console.warn("Failed to init Gemini, falling back to local provider:", e);
+      }
     }
   }
 
