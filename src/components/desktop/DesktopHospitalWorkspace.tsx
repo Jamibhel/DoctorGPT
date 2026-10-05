@@ -82,8 +82,8 @@ export const DesktopHospitalWorkspace: React.FC = () => {
   } = useHospital();
 
   // Navigation State
-  // Active primary view: 'command' | 'chart' | 'beds' | 'cpoe' | 'scribe' | 'operations' | 'ot'
-  const [activeView, setActiveView] = useState<'command' | 'chart' | 'beds' | 'cpoe' | 'scribe' | 'operations' | 'ot'>('chart');
+  // Active primary view: command center -> patient workspace -> operations/meds/imaging/pharmacy -> task-specific views
+  const [activeView, setActiveView] = useState<'command' | 'chart' | 'orders' | 'medications' | 'imaging' | 'pharmacy' | 'beds' | 'scribe' | 'operations' | 'ot'>('command');
   
   // Chart Sub-Tabs: 'flowsheet' | 'labs' | 'orders' | 'imaging' | 'notes' | 'timeline'
   const [chartSubTab, setChartSubTab] = useState<'flowsheet' | 'labs' | 'orders' | 'imaging' | 'notes' | 'timeline'>('flowsheet');
@@ -320,32 +320,32 @@ export const DesktopHospitalWorkspace: React.FC = () => {
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 block mb-1">
                 Command
               </span>
-              <div className="space-y-0.5">
+              <div className="grid grid-cols-2 gap-1.5">
                 <button
                   onClick={() => setActiveView('command')}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-md flex items-center gap-2.5 transition font-medium ${
-                    activeView === 'command' 
-                      ? 'bg-blue-600 text-white font-semibold' 
-                      : 'hover:bg-slate-800/80 text-slate-300 hover:text-white'
+                  className={`w-full text-left px-2 py-1.5 rounded-md border flex items-center gap-2.5 transition font-medium ${
+                    activeView === 'command'
+                      ? 'bg-[#0f172a] text-white border-[#0f172a] font-semibold'
+                      : 'bg-white text-slate-700 border-[#d7dee7] hover:bg-slate-50'
                   }`}
                 >
-                  <LayoutGrid className="w-4 h-4 text-slate-400 shrink-0" />
+                  <LayoutGrid className="w-4 h-4 shrink-0" />
                   <span>Command Center</span>
                 </button>
 
                 <button
                   onClick={() => setActiveView('ot')}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-md flex items-center justify-between transition font-medium ${
+                  className={`w-full text-left px-2 py-1.5 rounded-md border flex items-center justify-between transition font-medium ${
                     activeView === 'ot'
-                      ? 'bg-blue-600 text-white font-semibold'
-                      : 'hover:bg-slate-800/80 text-slate-300 hover:text-white'
+                      ? 'bg-[#0f172a] text-white border-[#0f172a] font-semibold'
+                      : 'bg-white text-slate-700 border-[#d7dee7] hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Stethoscope className="w-4 h-4 text-indigo-400 shrink-0" />
-                    <span>OT / Theatre Board</span>
+                    <Stethoscope className="w-4 h-4 shrink-0" />
+                    <span>OT / Theatre</span>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-mono">{otSchedule.length}</span>
+                  <span className="text-[10px] font-mono">{otSchedule.length}</span>
                 </button>
 
                 <button
@@ -353,17 +353,17 @@ export const DesktopHospitalWorkspace: React.FC = () => {
                     setSelectedWardFilter('dept-ed');
                     setActiveView('operations');
                   }}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-md flex items-center justify-between transition font-medium ${
+                  className={`w-full text-left px-2 py-1.5 rounded-md border flex items-center justify-between transition font-medium ${
                     activeView === 'operations' && selectedWardFilter === 'dept-ed'
-                      ? 'bg-blue-600 text-white font-semibold'
-                      : 'hover:bg-slate-800/80 text-slate-300 hover:text-white'
+                      ? 'bg-[#0f172a] text-white border-[#0f172a] font-semibold'
+                      : 'bg-white text-slate-700 border-[#d7dee7] hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Flame className="w-4 h-4 text-red-400 shrink-0" />
+                    <Flame className="w-4 h-4 shrink-0" />
                     <span>Emergency (ED)</span>
                   </div>
-                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-red-900/60 text-red-300 border border-red-700/50">
+                  <span className="text-[10px] px-1.5 py-0.2 rounded bg-red-100 text-red-700 border border-red-200">
                     ESI 1-5
                   </span>
                 </button>
@@ -373,17 +373,17 @@ export const DesktopHospitalWorkspace: React.FC = () => {
                     setSelectedWardFilter('dept-icu');
                     setActiveView('beds');
                   }}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-md flex items-center justify-between transition font-medium ${
+                  className={`w-full text-left px-2 py-1.5 rounded-md border flex items-center justify-between transition font-medium ${
                     activeView === 'beds' && selectedWardFilter === 'dept-icu'
-                      ? 'bg-blue-600 text-white font-semibold'
-                      : 'hover:bg-slate-800/80 text-slate-300 hover:text-white'
+                      ? 'bg-[#0f172a] text-white border-[#0f172a] font-semibold'
+                      : 'bg-white text-slate-700 border-[#d7dee7] hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <HeartPulse className="w-4 h-4 text-amber-400 shrink-0" />
-                    <span>Intensive Care (ICU)</span>
+                    <HeartPulse className="w-4 h-4 shrink-0" />
+                    <span>ICU</span>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-mono">3/4</span>
+                  <span className="text-[10px] font-mono">3/4</span>
                 </button>
 
                 <button
@@ -391,42 +391,41 @@ export const DesktopHospitalWorkspace: React.FC = () => {
                     setSelectedWardFilter('dept-medsurg');
                     setActiveView('beds');
                   }}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-md flex items-center justify-between transition font-medium ${
+                  className={`w-full text-left px-2 py-1.5 rounded-md border flex items-center justify-between transition font-medium ${
                     activeView === 'beds' && selectedWardFilter === 'dept-medsurg'
-                      ? 'bg-blue-600 text-white font-semibold'
-                      : 'hover:bg-slate-800/80 text-slate-300 hover:text-white'
+                      ? 'bg-[#0f172a] text-white border-[#0f172a] font-semibold'
+                      : 'bg-white text-slate-700 border-[#d7dee7] hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <BedDouble className="w-4 h-4 text-blue-400 shrink-0" />
-                    <span>Med-Surg Ward (3F)</span>
+                    <BedDouble className="w-4 h-4 shrink-0" />
+                    <span>Med-Surg (3F)</span>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-mono">18/20</span>
+                  <span className="text-[10px] font-mono">18/20</span>
                 </button>
               </div>
             </div>
 
-            {/* CLINICAL WORKSPACE Section */}
             <div>
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 block mb-1">
                 Clinical
               </span>
-              <div className="space-y-0.5">
+              <div className="grid grid-cols-2 gap-1.5">
                 <button
                   onClick={() => setActiveView('chart')}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-md flex items-center justify-between transition font-medium ${
-                    activeView === 'chart' 
-                      ? 'bg-blue-600 text-white font-semibold' 
-                      : 'hover:bg-slate-800/80 text-slate-300 hover:text-white'
+                  className={`w-full text-left px-2 py-1.5 rounded-md border flex items-center justify-between transition font-medium ${
+                    activeView === 'chart'
+                      ? 'bg-[#0f172a] text-white border-[#0f172a] font-semibold'
+                      : 'bg-white text-slate-700 border-[#d7dee7] hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Activity className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span>EHR Patient Chart</span>
+                    <Activity className="w-4 h-4 shrink-0" />
+                    <span>Patient Workspace</span>
                   </div>
                   {latestObservation && (
                     <span className={`text-[10px] font-bold px-1.5 py-0.2 rounded font-mono ${
-                      latestObservation.news2RiskTier === 'HIGH' ? 'bg-red-600 text-white' : 'bg-slate-800 text-slate-300'
+                      latestObservation.news2RiskTier === 'HIGH' ? 'bg-red-600 text-white' : 'bg-slate-200 text-slate-700'
                     }`}>
                       N:{latestObservation.news2Score}
                     </span>
@@ -434,76 +433,120 @@ export const DesktopHospitalWorkspace: React.FC = () => {
                 </button>
 
                 <button
-                  onClick={() => setActiveView('cpoe')}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-md flex items-center justify-between transition font-medium ${
-                    activeView === 'cpoe' 
-                      ? 'bg-blue-600 text-white font-semibold' 
-                      : 'hover:bg-slate-800/80 text-slate-300 hover:text-white'
+                  onClick={() => setActiveView('orders')}
+                  className={`w-full text-left px-2 py-1.5 rounded-md border flex items-center justify-between transition font-medium ${
+                    activeView === 'orders'
+                      ? 'bg-[#0f172a] text-white border-[#0f172a] font-semibold'
+                      : 'bg-white text-slate-700 border-[#d7dee7] hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Pill className="w-4 h-4 text-purple-400 shrink-0" />
-                    <span>CPOE &amp; Inpatient eMAR</span>
+                    <Pill className="w-4 h-4 shrink-0" />
+                    <span>Orders</span>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-mono">{patientOrders.length}</span>
+                  <span className="text-[10px] font-mono">{patientOrders.length}</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveView('medications')}
+                  className={`w-full text-left px-2 py-1.5 rounded-md border flex items-center justify-between transition font-medium ${
+                    activeView === 'medications'
+                      ? 'bg-[#0f172a] text-white border-[#0f172a] font-semibold'
+                      : 'bg-white text-slate-700 border-[#d7dee7] hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Syringe className="w-4 h-4 shrink-0" />
+                    <span>Medications</span>
+                  </div>
+                  <span className="text-[10px] font-mono">{patientAdms.length}</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveView('imaging')}
+                  className={`w-full text-left px-2 py-1.5 rounded-md border flex items-center justify-between transition font-medium ${
+                    activeView === 'imaging'
+                      ? 'bg-[#0f172a] text-white border-[#0f172a] font-semibold'
+                      : 'bg-white text-slate-700 border-[#d7dee7] hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Eye className="w-4 h-4 shrink-0" />
+                    <span>Imaging</span>
+                  </div>
+                  <span className="text-[10px] font-mono">{patientImaging.length}</span>
                 </button>
 
                 <button
                   onClick={() => setActiveView('scribe')}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-md flex items-center justify-between transition font-medium ${
-                    activeView === 'scribe' 
-                      ? 'bg-emerald-700 text-white font-semibold' 
-                      : 'hover:bg-slate-800/80 text-slate-300 hover:text-white'
+                  className={`w-full text-left px-2 py-1.5 rounded-md border flex items-center justify-between transition font-medium ${
+                    activeView === 'scribe'
+                      ? 'bg-[#0f172a] text-white border-[#0f172a] font-semibold'
+                      : 'bg-white text-slate-700 border-[#d7dee7] hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Sparkles className="w-4 h-4 text-emerald-400 shrink-0" />
-                    <span>Ambient AI Scribe</span>
+                    <Sparkles className="w-4 h-4 shrink-0" />
+                    <span>AI Scribe</span>
                   </div>
-                  <span className="text-[10px] bg-emerald-900/80 text-emerald-300 border border-emerald-700 px-1 rounded">
+                  <span className="text-[10px] bg-emerald-100 text-emerald-700 border border-emerald-200 px-1 rounded">
                     AI
                   </span>
                 </button>
               </div>
             </div>
 
-            {/* OPERATIONS Section */}
             <div>
               <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider px-2 block mb-1">
                 Operations
               </span>
-              <div className="space-y-0.5">
+              <div className="grid grid-cols-2 gap-1.5">
                 <button
                   onClick={() => {
                     setSelectedWardFilter('ALL');
                     setActiveView('beds');
                   }}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-md flex items-center justify-between transition font-medium ${
+                  className={`w-full text-left px-2 py-1.5 rounded-md border flex items-center justify-between transition font-medium ${
                     activeView === 'beds' && selectedWardFilter === 'ALL'
-                      ? 'bg-blue-600 text-white font-semibold' 
-                      : 'hover:bg-slate-800/80 text-slate-300 hover:text-white'
+                      ? 'bg-[#0f172a] text-white border-[#0f172a] font-semibold'
+                      : 'bg-white text-slate-700 border-[#d7dee7] hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <BedDouble className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span>Bed Matrix &amp; ADT</span>
+                    <BedDouble className="w-4 h-4 shrink-0" />
+                    <span>Bed Management</span>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-mono">{occupiedBedsCount}/{totalBedsCount}</span>
+                  <span className="text-[10px] font-mono">{occupiedBedsCount}/{totalBedsCount}</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveView('pharmacy')}
+                  className={`w-full text-left px-2 py-1.5 rounded-md border flex items-center justify-between transition font-medium ${
+                    activeView === 'pharmacy'
+                      ? 'bg-[#0f172a] text-white border-[#0f172a] font-semibold'
+                      : 'bg-white text-slate-700 border-[#d7dee7] hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Pill className="w-4 h-4 shrink-0" />
+                    <span>Pharmacy</span>
+                  </div>
+                  <span className="text-[10px] font-mono">{orders.filter(o => o.status === 'ORDERED').length}</span>
                 </button>
 
                 <button
                   onClick={() => setActiveView('operations')}
-                  className={`w-full text-left px-2.5 py-1.5 rounded-md flex items-center justify-between transition font-medium ${
+                  className={`w-full text-left px-2 py-1.5 rounded-md border flex items-center justify-between transition font-medium ${
                     activeView === 'operations' && selectedWardFilter === 'ALL'
-                      ? 'bg-blue-600 text-white font-semibold' 
-                      : 'hover:bg-slate-800/80 text-slate-300 hover:text-white'
+                      ? 'bg-[#0f172a] text-white border-[#0f172a] font-semibold'
+                      : 'bg-white text-slate-700 border-[#d7dee7] hover:bg-slate-50'
                   }`}
                 >
                   <div className="flex items-center gap-2.5">
-                    <Users className="w-4 h-4 text-slate-400 shrink-0" />
-                    <span>Staff Coverage &amp; Drills</span>
+                    <Users className="w-4 h-4 shrink-0" />
+                    <span>Staff Coverage</span>
                   </div>
-                  <span className="text-[10px] text-slate-400 font-mono">{staff.length}</span>
+                  <span className="text-[10px] font-mono">{staff.length}</span>
                 </button>
               </div>
             </div>
@@ -582,10 +625,10 @@ export const DesktopHospitalWorkspace: React.FC = () => {
         )}
 
         {/* TOP CLINICAL WORKSTATION TOOLBAR */}
-        <header className="h-[58px] bg-white border-b border-[#D7DEE7] px-5 flex items-center justify-between gap-4 shrink-0 z-20">
+        <header className="h-[58px] bg-[#f5f3ef] border-b border-[#D7DEE7] px-5 flex items-center justify-between gap-4 shrink-0 z-20">
           <div className="flex items-center gap-4 min-w-0">
             <div className="flex items-center gap-2 min-w-0">
-              <span className="text-[15px] font-bold tracking-tight text-[#172033]">HOSPITALOS</span>
+              <span className="text-[15px] font-bold tracking-tight text-[#111827]">HOSPITALOS</span>
               <span className="text-[12px] text-[#64748B]">St. Jude Metropolitan</span>
             </div>
 
@@ -629,39 +672,6 @@ export const DesktopHospitalWorkspace: React.FC = () => {
                 </button>
               )}
             </div>
-
-            {searchQuery.trim() && (
-              <div className="absolute left-0 right-0 top-full mt-1 bg-white border border-[#D7DEE7] rounded-[4px] shadow-lg max-h-64 overflow-y-auto z-50 text-xs divide-y divide-[#E5EDF5]">
-                {filteredPatients.length === 0 ? (
-                  <div className="p-3 text-center text-[#64748B]">No matching patients found</div>
-                ) : (
-                  filteredPatients.map(p => {
-                    const enc = encounters.find(e => e.patientId === p.id && e.status === 'ACTIVE');
-                    const b = beds.find(bed => bed.id === enc?.activeBedId);
-                    return (
-                      <div
-                        key={p.id}
-                        onClick={() => {
-                          setActivePatientId(p.id);
-                          setSearchQuery('');
-                          setActiveView('chart');
-                        }}
-                        className="p-2.5 hover:bg-[#EFF6FF] cursor-pointer flex items-center justify-between transition"
-                      >
-                        <div>
-                          <span className="font-bold text-[#172033]">{p.lastName}, {p.firstName}</span>
-                          <span className="text-[11px] text-[#64748B] font-mono ml-2">MRN: {p.mrn}</span>
-                          <p className="text-[10px] text-[#64748B]">{enc?.admittingDiagnosis || 'Inpatient Care'}</p>
-                        </div>
-                        <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#F8FAFC] text-[#475569] border border-[#D7DEE7]">
-                          {b ? `Bed ${b.bedNumber}` : 'Outpatient'}
-                        </span>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-            )}
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
@@ -692,83 +702,78 @@ export const DesktopHospitalWorkspace: React.FC = () => {
         </header>
 
         {/* ==================================================== */}
-        {/* CLINICAL PATIENT HEADER BANNER (Shown for Patient)   */}
+        {/* CLINICAL PATIENT HEADER BANNER (Persistent across workspaces) */}
         {/* ==================================================== */}
-        {activeView === 'chart' && (
-          <section className="bg-white border-b border-[#E2E8F0] px-6 py-2.5 shrink-0 select-none">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              
-              {/* Patient Core Identity */}
-              <div className="flex items-center space-x-3.5">
-                <div className="w-9 h-9 rounded bg-[#2563EB] text-white flex items-center justify-center font-bold text-sm shrink-0">
-                  {activePatient.firstName[0]}{activePatient.lastName[0]}
-                </div>
-
-                <div>
-                  <div className="flex items-center space-x-2.5">
-                    <h1 className="text-sm font-bold text-slate-900 tracking-tight">
-                      {activePatient.lastName}, {activePatient.firstName}
-                    </h1>
-                    <span className="text-xs text-slate-500 font-medium font-mono">
-                      {new Date().getFullYear() - new Date(activePatient.dateOfBirth).getFullYear()}yo {activePatient.sex}
-                    </span>
-                    <span className="font-mono text-xs text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
-                      MRN: {activePatient.mrn}
-                    </span>
-                    <span className="text-[11px] font-mono font-bold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
-                      {activeBed ? `Bed ${activeBed.bedNumber}` : 'Outpatient'}
-                    </span>
-                    <span className="text-[11px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700">
-                      {activeEncounter.codeStatus}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center space-x-3 text-[11px] text-slate-500 mt-0.5">
-                    <span>Dx: <strong className="text-slate-800">{activeEncounter.admittingDiagnosis}</strong></span>
-                    <span>• Attending: <strong>{activeEncounter.attendingPhysicianId}</strong></span>
-                    <span>• Admitted: {new Date(activeEncounter.admittedAt).toLocaleDateString()}</span>
-                  </div>
-                </div>
+        <section className="bg-[#f7f5f2] border-b border-[#E2E8F0] px-6 py-2.5 shrink-0 select-none">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <div className="flex items-center space-x-3.5">
+              <div className="w-9 h-9 rounded bg-[#0f172a] text-white flex items-center justify-center font-bold text-sm shrink-0 border border-slate-700">
+                {activePatient.firstName[0]}{activePatient.lastName[0]}
               </div>
 
-              {/* Right Side Clinical Alerts: Red Allergy Box + NEWS2 Badge */}
-              <div className="flex items-center space-x-3">
-                {allergies.length > 0 ? (
-                  <div className="px-3 py-1 rounded bg-[#EF4444]/10 border border-[#EF4444] text-[#EF4444] text-xs font-bold flex items-center gap-1.5">
-                    <ShieldAlert className="w-3.5 h-3.5 text-[#EF4444] shrink-0" />
-                    <span>ALLERGIES: {allergies.map(a => `${a.allergen} (${a.reaction})`).join(", ")}</span>
-                  </div>
-                ) : (
-                  <span className="text-[11px] text-slate-500 font-medium px-2.5 py-0.5 bg-slate-100 rounded border border-slate-200">
-                    NKDA
+              <div>
+                <div className="flex items-center space-x-2.5">
+                  <h1 className="text-sm font-bold text-slate-900 tracking-tight">
+                    {activePatient.lastName}, {activePatient.firstName}
+                  </h1>
+                  <span className="text-xs text-slate-500 font-medium font-mono">
+                    {new Date().getFullYear() - new Date(activePatient.dateOfBirth).getFullYear()}yo {activePatient.sex}
                   </span>
-                )}
+                  <span className="font-mono text-xs text-slate-600 bg-slate-100 px-1.5 py-0.2 rounded border border-slate-200">
+                    MRN: {activePatient.mrn}
+                  </span>
+                  <span className="text-[11px] font-mono font-bold px-1.5 py-0.2 rounded bg-blue-50 text-blue-700 border border-blue-200">
+                    {activeBed ? `Bed ${activeBed.bedNumber}` : 'Outpatient'}
+                  </span>
+                  <span className="text-[11px] font-semibold px-1.5 py-0.2 rounded bg-slate-100 text-slate-700">
+                    {activeEncounter.codeStatus}
+                  </span>
+                </div>
 
-                {latestObservation && (
-                  <div className={`px-2.5 py-1 rounded border text-xs font-bold font-mono flex items-center gap-1.5 ${
-                    latestObservation.news2RiskTier === 'HIGH'
-                      ? 'bg-red-50 border-red-400 text-red-700 animate-pulse'
-                      : latestObservation.news2RiskTier === 'MEDIUM'
-                      ? 'bg-amber-50 border-amber-400 text-amber-800'
-                      : 'bg-emerald-50 border-emerald-400 text-emerald-800'
-                  }`}>
-                    <Activity className="w-3.5 h-3.5" />
-                    <span>NEWS2: {latestObservation.news2Score} ({latestObservation.news2RiskTier})</span>
-                  </div>
-                )}
-
-                {/* SBAR Button */}
-                <button
-                  onClick={handleGenerateSBAR}
-                  className="px-2.5 py-1 rounded bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold transition flex items-center gap-1"
-                >
-                  <FileText className="w-3.5 h-3.5" />
-                  <span>SBAR Handover</span>
-                </button>
+                <div className="flex items-center space-x-3 text-[11px] text-slate-500 mt-0.5">
+                  <span>Dx: <strong className="text-slate-800">{activeEncounter.admittingDiagnosis}</strong></span>
+                  <span>• Attending: <strong>{activeEncounter.attendingPhysicianId}</strong></span>
+                  <span>• Admitted: {new Date(activeEncounter.admittedAt).toLocaleDateString()}</span>
+                </div>
               </div>
             </div>
 
-            {/* Secondary Patient Chart Tabs */}
+            <div className="flex items-center space-x-3">
+              {allergies.length > 0 ? (
+                <div className="px-3 py-1 rounded bg-[#EF4444]/10 border border-[#EF4444] text-[#EF4444] text-xs font-bold flex items-center gap-1.5">
+                  <ShieldAlert className="w-3.5 h-3.5 text-[#EF4444] shrink-0" />
+                  <span>ALLERGIES: {allergies.map(a => `${a.allergen} (${a.reaction})`).join(", ")}</span>
+                </div>
+              ) : (
+                <span className="text-[11px] text-slate-500 font-medium px-2.5 py-0.5 bg-slate-100 rounded border border-slate-200">
+                  NKDA
+                </span>
+              )}
+
+              {latestObservation && (
+                <div className={`px-2.5 py-1 rounded border text-xs font-bold font-mono flex items-center gap-1.5 ${
+                  latestObservation.news2RiskTier === 'HIGH'
+                    ? 'bg-red-50 border-red-400 text-red-700 animate-pulse'
+                    : latestObservation.news2RiskTier === 'MEDIUM'
+                    ? 'bg-amber-50 border-amber-400 text-amber-800'
+                    : 'bg-emerald-50 border-emerald-400 text-emerald-800'
+                }`}>
+                  <Activity className="w-3.5 h-3.5" />
+                  <span>NEWS2: {latestObservation.news2Score} ({latestObservation.news2RiskTier})</span>
+                </div>
+              )}
+
+              <button
+                onClick={handleGenerateSBAR}
+                className="px-2.5 py-1 rounded bg-purple-50 hover:bg-purple-100 text-purple-700 border border-purple-200 text-xs font-bold transition flex items-center gap-1"
+              >
+                <FileText className="w-3.5 h-3.5" />
+                <span>SBAR Handover</span>
+              </button>
+            </div>
+          </div>
+
+          {activeView === 'chart' && (
             <div className="flex items-center space-x-1 border-t border-slate-100 mt-2 pt-1 text-xs font-medium text-slate-600">
               <button
                 onClick={() => setChartSubTab('flowsheet')}
@@ -830,8 +835,8 @@ export const DesktopHospitalWorkspace: React.FC = () => {
                 <span>Timeline</span>
               </button>
             </div>
-          </section>
-        )}
+          )}
+        </section>
 
         {/* MAIN SCROLLABLE CONTENT BODY */}
         <main className="flex-1 p-5 overflow-y-auto space-y-5">
@@ -1521,16 +1526,16 @@ export const DesktopHospitalWorkspace: React.FC = () => {
           )}
 
           {/* ==================================================== */}
-          {/* VIEW: CPOE & PHARMACY QUEUE                          */}
+          {/* VIEW: ORDERS WORKSPACE                               */}
           {/* ==================================================== */}
-          {activeView === 'cpoe' && (
+          {(activeView === 'orders' || activeView === 'cpoe') && (
             <div className="space-y-5">
               <div className="flex items-center justify-between bg-white p-3.5 rounded-[6px] border border-[#D7DEE7]">
                 <div>
                   <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                    CPOE Inpatient Order Management &amp; Verification Pipeline
+                    Orders Workspace
                   </h2>
-                  <p className="text-[11px] text-slate-500">Deterministic CDS contraindication safety protected</p>
+                  <p className="text-[11px] text-slate-500">Deterministic CDS review, verification flow, and clinician confirmation</p>
                 </div>
 
                 <button
@@ -1541,7 +1546,6 @@ export const DesktopHospitalWorkspace: React.FC = () => {
                 </button>
               </div>
 
-              {/* All System Active Orders Table */}
               <div className="bg-white rounded-[6px] border border-[#D7DEE7] overflow-hidden">
                 <table className="w-full text-xs text-left">
                   <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
@@ -1602,6 +1606,103 @@ export const DesktopHospitalWorkspace: React.FC = () => {
                     })}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {activeView === 'medications' && (
+            <div className="space-y-5">
+              <div className="bg-white p-3.5 rounded-[6px] border border-[#D7DEE7] flex items-center justify-between">
+                <div>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">Medication & eMAR Workspace</h2>
+                  <p className="text-[11px] text-slate-500">Queue, verification, dispense, and administration workflow</p>
+                </div>
+              </div>
+              <div className="bg-white rounded-[6px] border border-[#D7DEE7] p-4 space-y-3">
+                {patientAdms.length === 0 ? (
+                  <div className="p-5 text-center text-slate-500 text-sm">No scheduled medication administrations for the active patient.</div>
+                ) : (
+                  patientAdms.map(adm => {
+                    const order = orders.find(o => o.id === adm.orderId);
+                    return (
+                      <div key={adm.id} className="border border-slate-200 rounded p-3 flex items-center justify-between gap-3">
+                        <div>
+                          <div className="font-bold text-slate-900">{order?.title || 'Medication'} </div>
+                          <div className="text-[11px] text-slate-500 font-mono">{new Date(adm.scheduledTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • {adm.status}</div>
+                        </div>
+                        <button
+                          onClick={() => administerMedication({ administrationId: adm.id, status: 'GIVEN' })}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded"
+                        >
+                          Confirm Given
+                        </button>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </div>
+          )}
+
+          {activeView === 'pharmacy' && (
+            <div className="space-y-5">
+              <div className="bg-white p-3.5 rounded-[6px] border border-[#D7DEE7] flex items-center justify-between">
+                <div>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">Pharmacy Verification Queue</h2>
+                  <p className="text-[11px] text-slate-500">Review allergies, interactions, renal dosing, and order safety</p>
+                </div>
+              </div>
+              <div className="bg-white rounded-[6px] border border-[#D7DEE7] overflow-hidden">
+                <table className="w-full text-xs text-left">
+                  <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
+                    <tr>
+                      <th className="py-2.5 px-3">Patient</th>
+                      <th className="py-2.5 px-3">Medication</th>
+                      <th className="py-2.5 px-3">Allergies</th>
+                      <th className="py-2.5 px-3">Interaction</th>
+                      <th className="py-2.5 px-3">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {orders.filter(o => o.orderType === 'MEDICATION').map(order => {
+                      const patient = patients.find(p => p.id === order.patientId);
+                      const allergiesText = patient?.allergies.map(a => a.allergen).join(', ') || 'None';
+                      return (
+                        <tr key={order.id} className="hover:bg-slate-50">
+                          <td className="py-2.5 px-3 font-bold text-slate-900">{patient ? `${patient.lastName}, ${patient.firstName}` : 'Unknown patient'}</td>
+                          <td className="py-2.5 px-3">{order.title}</td>
+                          <td className="py-2.5 px-3 text-slate-600">{allergiesText}</td>
+                          <td className="py-2.5 px-3 text-slate-600">{order.priority === 'STAT' ? 'High priority review' : 'No high-risk interaction'}</td>
+                          <td className="py-2.5 px-3 text-right">
+                            <button onClick={() => verifyOrderPharmacy(order.id)} className="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white font-bold text-[11px] rounded">Verify</button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {activeView === 'imaging' && (
+            <div className="space-y-5">
+              <div className="bg-white p-3.5 rounded-[6px] border border-[#D7DEE7]">
+                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">Imaging Workspace</h2>
+                <p className="text-[11px] text-slate-500">Radiology worklist, study review, and AI overlays marked as simulated</p>
+              </div>
+              <div className="bg-white rounded-[6px] border border-[#D7DEE7] p-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {patientImaging.length === 0 ? (
+                    <div className="text-slate-500 text-sm">No imaging studies for the active patient.</div>
+                  ) : patientImaging.map(study => (
+                    <div key={study.id} className="border border-slate-200 rounded p-3 bg-slate-50">
+                      <div className="font-bold text-slate-900">{study.studyType}</div>
+                      <div className="text-[11px] text-slate-500 font-mono">{study.modality} • {study.status}</div>
+                      <div className="mt-2 text-[11px] text-slate-700">{study.impression}</div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
           )}
