@@ -47,6 +47,7 @@ import { SBARService } from "@/lib/services/sbar-service";
 import { SAMPLE_CONSULTATIONS } from "@/lib/data/sample-consultations";
 import { aiOrchestrator } from "@/lib/ai/orchestrator";
 import { FacilityOperationsWorkspace } from "../facility";
+import { PatientRegistryWorkspace } from "../patients";
 
 export interface DesktopHospitalWorkspaceProps {
   externalView?: string;
@@ -88,13 +89,15 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
 
   // Navigation State
   // Active primary view: command center -> patient workspace -> operations/meds/imaging/pharmacy -> task-specific views
-  const [activeView, setActiveView] = useState<'command' | 'chart' | 'orders' | 'medications' | 'imaging' | 'pharmacy' | 'beds' | 'scribe' | 'operations' | 'ot' | 'facility_admin'>('command');
+  const [activeView, setActiveView] = useState<'command' | 'chart' | 'orders' | 'medications' | 'imaging' | 'pharmacy' | 'beds' | 'scribe' | 'operations' | 'ot' | 'facility_admin' | 'registry'>('command');
   
   // Sync with AppShell activeView if provided
   React.useEffect(() => {
     if (externalView) {
       if (externalView === 'facility_admin') {
         setActiveView('facility_admin');
+      } else if (externalView === 'registry') {
+        setActiveView('registry');
       } else if (['command', 'chart', 'orders', 'medications', 'imaging', 'pharmacy', 'beds', 'scribe', 'operations', 'ot'].includes(externalView)) {
         setActiveView(externalView as any);
       }
@@ -446,6 +449,21 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
                       N:{latestObservation.news2Score}
                     </span>
                   )}
+                </button>
+
+                <button
+                  onClick={() => setActiveView('registry')}
+                  className={`w-full text-left px-2 py-1.5 rounded-md border flex items-center justify-between transition font-medium ${
+                    activeView === 'registry'
+                      ? 'bg-[#0f172a] text-white border-[#0f172a] font-semibold'
+                      : 'bg-white text-slate-700 border-[#d7dee7] hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Users className="w-4 h-4 shrink-0" />
+                    <span>Patient Registry</span>
+                  </div>
+                  <span className="text-[10px] font-mono">{patients.length}</span>
                 </button>
 
                 <button
@@ -2060,6 +2078,13 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
           {/* ==================================================== */}
           {activeView === 'facility_admin' && (
             <FacilityOperationsWorkspace />
+          )}
+
+          {/* ==================================================== */}
+          {/* VIEW: PATIENT REGISTRY & GLOBAL EMPI                 */}
+          {/* ==================================================== */}
+          {activeView === 'registry' && (
+            <PatientRegistryWorkspace />
           )}
         </main>
       </div>

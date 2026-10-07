@@ -100,7 +100,11 @@ interface HospitalContextType {
     bloodGlucoseMgDl?: number;
   }) => void;
 
+  // Patient Registry & EMPI
+  registerPatient: (data: Omit<Patient, 'id' | 'facilityId' | 'mrn' | 'createdAt' | 'updatedAt'>) => Patient;
+  updatePatientDemographics: (patientId: string, updates: Partial<Patient>) => void;
   updatePatientAllergy: (allergy: PatientAllergy) => void;
+  searchPatientsGlobal: (query: string) => { patient: Patient; facility: HealthcareFacility }[];
 
   evaluateCandidateOrder: (order: Partial<CPOEOrder>) => CDSAlert[];
   createCPOEOrder: (order: Omit<CPOEOrder, 'id' | 'orderedAt' | 'orderedBy' | 'status' | 'facilityId'>) => {
@@ -474,23 +478,63 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  const registerPatient = (data: Omit<Patient, 'id' | 'facilityId' | 'mrn' | 'createdAt' | 'updatedAt'>): Patient => {
+    const created = tenantRepository.registerPatient(
+      activeFacilityId,
+      data,
+      currentStaff.name,
+      currentStaff.role
+    );
+    const updatedPatients = tenantRepository.getPatients(activeFacilityId);
+    setPatients(updatedPatients);
+    setActivePatientId(created.id);
+
+    const audits = tenantRepository.getAuditLogs(activeFacilityId);
+    setAuditLogs(audits);
+
+    return created;
+  };
+
+  const updatePatientDemographics = (patientId: string, updates: Partial<Patient>) => {
+    const updated = tenantRepository.updatePatient(
+      activeFacilityId,
+      patientId,
+      updates,
+      currentStaff.name,
+      currentStaff.role
+    );
+    const updatedPatients = tenantRepository.getPatients(activeFacilityId);
+    setPatients(updatedPatients);
+
+    const audits = tenantRepository.getAuditLogs(activeFacilityId);
+    setAuditLogs(audits);
+  };
+
   const updatePatientAllergy = (allergy: PatientAllergy) => {
-    setPatients(prev => prev.map(p => {
-      const existingAllergies = p.allergies || [];
-      const updated = existingAllergies.filter(a => a.id !== allergy.id).concat({
-        ...allergy,
-        version: allergy.version + 1
-      });
-      return { ...p, allergies: updated };
-    }));
+    const updated = tenantRepository.updatePatientAllergy(
+      activeFacilityId,
+      activePatientId,
+      allergy,
+      currentStaff.name,
+      currentStaff.role
+    );
+    const updatedPatients = tenantRepository.getPatients(activeFacilityId);
+    setPatients(updatedPatients);
 
     emitClinicalEvent(
       'ALLERGY_RECORDED',
-      `Allergy Documented: ${allergy.allergen}`,
+      `Allergy Documented (v${allergy.version || 1}): ${allergy.allergen}`,
       `Severity: ${allergy.severity}. Reaction: ${allergy.reaction}`,
       activePatientId,
       activeEncounterId
     );
+
+    const audits = tenantRepository.getAuditLogs(activeFacilityId);
+    setAuditLogs(audits);
+  };
+
+  const searchPatientsGlobal = (query: string) => {
+    return tenantRepository.searchPatientsGlobal(query);
   };
 
   const evaluateCandidateOrder = (order: Partial<CPOEOrder>): CDSAlert[] => {
@@ -758,7 +802,10 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       dischargePatient,
       completeBedCleaning,
       recordVitals,
+      registerPatient,
+      updatePatientDemographics,
       updatePatientAllergy,
+      searchPatientsGlobal,
       evaluateCandidateOrder,
       createCPOEOrder,
       verifyOrderPharmacy,

@@ -491,6 +491,13 @@ export const AppShell: React.FC<AppShellProps> = ({
                 collapsed={navCollapsed}
               />
               <NavRailItem
+                icon={<Users className="w-4 h-4" />}
+                label="Patient Registry"
+                isActive={activeView === "registry"}
+                onClick={() => onSelectView("registry")}
+                collapsed={navCollapsed}
+              />
+              <NavRailItem
                 icon={<Pill className="w-4 h-4" />}
                 label="CPOE & Orders"
                 badge={pendingOrdersCount > 0 ? pendingOrdersCount : undefined}
@@ -677,6 +684,15 @@ export const AppShell: React.FC<AppShellProps> = ({
             isActive={activeView === "chart"}
             onClick={() => {
               onSelectView("chart");
+              setIsMobileMenuOpen(false);
+            }}
+          />
+          <NavRailItem
+            icon={<Users className="w-4 h-4" />}
+            label="Patient Registry & EMPI"
+            isActive={activeView === "registry"}
+            onClick={() => {
+              onSelectView("registry");
               setIsMobileMenuOpen(false);
             }}
           />

@@ -301,6 +301,178 @@ export class TenantRepository {
     return this.idxFacilityAndMrn.get(key) || null;
   }
 
+  /**
+   * Enterprise Master Patient Index (EMPI) Cross-Facility Search
+   * Allows searching across all tenant facilities for identity matching and record linkage
+   */
+  public searchPatientsGlobal(query: string): { patient: Patient; facility: HealthcareFacility }[] {
+    const clean = query.trim().toLowerCase();
+    if (!clean) return [];
+
+    const matches: { patient: Patient; facility: HealthcareFacility }[] = [];
+    for (const patient of this.patients.values()) {
+      const fullName = `${patient.firstName} ${patient.lastName}`.toLowerCase();
+      const mrnMatch = patient.mrn.toLowerCase().includes(clean);
+      const phoneMatch = patient.phone.includes(clean);
+      const dobMatch = patient.dateOfBirth.includes(clean);
+
+      if (fullName.includes(clean) || mrnMatch || phoneMatch || dobMatch) {
+        const fac = this.facilities.get(patient.facilityId);
+        if (fac) {
+          matches.push({ patient, facility: fac });
+        }
+      }
+    }
+    return matches;
+  }
+
+  /**
+   * Register new patient with facility MRN auto-generation
+   */
+  public registerPatient(
+    facilityId: string,
+    data: Omit<Patient, "id" | "facilityId" | "mrn" | "createdAt" | "updatedAt">,
+    actorId: string,
+    actorRole: string
+  ): Patient {
+    const facility = this.facilities.get(facilityId);
+    if (!facility) throw new Error(`Facility ${facilityId} not found`);
+
+    const seq = (this.patients.size + 1001).toString().padStart(6, "0");
+    const mrn = `${facility.mrnPrefix}-${seq}`;
+    const id = `Patient/pat-${Date.now().toString().slice(-6)}`;
+
+    const newPatient: Patient = {
+      ...data,
+      id,
+      facilityId,
+      mrn,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    this.patients.set(newPatient.id, newPatient);
+    // Index by facility + MRN
+    this.idxFacilityAndMrn.set(`${facilityId}:${mrn.toUpperCase()}`, newPatient);
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName: actorId,
+      actorRole,
+      action: "PATIENT_REGISTERED",
+      resourceType: "Patient",
+      resourceId: newPatient.id,
+      patientId: newPatient.id,
+      timestamp: new Date().toISOString(),
+      newValue: JSON.stringify({ mrn, name: `${newPatient.firstName} ${newPatient.lastName}` }),
+      source: "EMPI_Registration"
+    });
+
+    return newPatient;
+  }
+
+  /**
+   * Update existing patient demographics
+   */
+  public updatePatient(
+    facilityId: string,
+    patientId: string,
+    updates: Partial<Patient>,
+    actorId: string,
+    actorRole: string
+  ): Patient {
+    const existing = this.patients.get(patientId);
+    if (!existing) throw new Error(`Patient ${patientId} not found`);
+    if (existing.facilityId !== facilityId) {
+      throw new TenantAccessDeniedError(facilityId, "Patient", patientId);
+    }
+
+    const updated: Patient = {
+      ...existing,
+      ...updates,
+      updatedAt: new Date().toISOString()
+    };
+    this.patients.set(patientId, updated);
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName: actorId,
+      actorRole,
+      action: "PATIENT_DEMOGRAPHICS_UPDATED",
+      resourceType: "Patient",
+      resourceId: patientId,
+      patientId,
+      timestamp: new Date().toISOString(),
+      previousValue: JSON.stringify({ phone: existing.phone, address: existing.address }),
+      newValue: JSON.stringify({ phone: updated.phone, address: updated.address }),
+      source: "Patient_Registry"
+    });
+
+    return updated;
+  }
+
+  /**
+   * Versioned patient allergy addition/update
+   */
+  public updatePatientAllergy(
+    facilityId: string,
+    patientId: string,
+    allergy: PatientAllergy,
+    actorId: string,
+    actorRole: string
+  ): Patient {
+    const patient = this.patients.get(patientId);
+    if (!patient) throw new Error(`Patient ${patientId} not found`);
+    if (patient.facilityId !== facilityId) {
+      throw new TenantAccessDeniedError(facilityId, "Patient", patientId);
+    }
+
+    const existingIndex = patient.allergies.findIndex((a) => a.id === allergy.id || a.allergen.toLowerCase() === allergy.allergen.toLowerCase());
+    const updatedAllergies = [...patient.allergies];
+
+    if (existingIndex >= 0) {
+      const prev = updatedAllergies[existingIndex];
+      updatedAllergies[existingIndex] = {
+        ...allergy,
+        version: prev.version + 1,
+        recordedAt: new Date().toISOString(),
+        recordedBy: actorId
+      };
+    } else {
+      updatedAllergies.push({
+        ...allergy,
+        id: allergy.id || `AllergyIntolerance/all-${Date.now().toString().slice(-4)}`,
+        version: 1,
+        recordedAt: new Date().toISOString(),
+        recordedBy: actorId
+      });
+    }
+
+    patient.allergies = updatedAllergies;
+    patient.updatedAt = new Date().toISOString();
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName: actorId,
+      actorRole,
+      action: "PATIENT_ALLERGY_VERSIONED",
+      resourceType: "PatientAllergy",
+      resourceId: allergy.id || allergy.allergen,
+      patientId,
+      timestamp: new Date().toISOString(),
+      newValue: JSON.stringify(allergy),
+      source: "Allergy_Safety_Engine"
+    });
+
+    return patient;
+  }
+
   // ==========================================
   // TENANT-ISOLATED BED & ENCOUNTER QUERIES
   // ==========================================
