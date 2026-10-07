@@ -11,6 +11,7 @@ import {
   Encounter, 
   HospitalBed, 
   HospitalDepartment, 
+  HealthcareFacility,
   MedicationAdministration, 
   Patient, 
   PatientAllergy, 
@@ -20,24 +21,17 @@ import {
   UserRole, 
   VitalSignObservation 
 } from "@/types/hospital";
-import { 
-  SEED_ADMINISTRATIONS, 
-  SEED_BEDS, 
-  SEED_DEPARTMENTS, 
-  SEED_ENCOUNTERS, 
-  SEED_EVENTS, 
-  SEED_IMAGING, 
-  SEED_LABS, 
-  SEED_NOTES, 
-  SEED_ORDERS, 
-  SEED_OBSERVATIONS, 
-  SEED_PATIENTS, 
-  SEED_STAFF 
-} from "../data/hospital-seed";
+import { tenantRepository } from "../db/tenant-repository";
 import { calculateNEWS2 } from "../services/news2";
 import { CDSSafetyEngine } from "../services/cds-engine";
 
 interface HospitalContextType {
+  // Multi-Tenant Facilities
+  facilities: HealthcareFacility[];
+  activeFacilityId: string;
+  activeFacility: HealthcareFacility;
+  switchFacility: (facilityId: string) => void;
+
   // State
   departments: HospitalDepartment[];
   staff: StaffMember[];
@@ -88,7 +82,7 @@ interface HospitalContextType {
   }) => void;
   completeBedCleaning: (bedId: string) => void;
 
-  // Clinical Operations
+  // Clinical Actions
   recordVitals: (params: {
     patientId: string;
     encounterId: string;
@@ -103,53 +97,103 @@ interface HospitalContextType {
     heartRate: number;
     consciousness: 'ALERT' | 'CVPU_VOICE' | 'CVPU_PAIN' | 'CVPU_UNRESPONSIVE';
     bloodGlucoseMgDl?: number;
-  }) => VitalSignObservation;
+  }) => void;
 
-  updatePatientAllergy: (patientId: string, allergy: PatientAllergy) => void;
+  updatePatientAllergy: (allergy: PatientAllergy) => void;
 
-  // CPOE & eMAR
-  evaluateCandidateOrder: (title: string, type: string) => CDSAlert[];
-  createCPOEOrder: (order: Omit<CPOEOrder, "id" | "orderedAt" | "orderedBy" | "status">) => CPOEOrder;
+  evaluateCandidateOrder: (order: Partial<CPOEOrder>) => CDSAlert[];
+  createCPOEOrder: (order: Omit<CPOEOrder, 'id' | 'orderedAt' | 'orderedBy' | 'status' | 'facilityId'>) => {
+    order: CPOEOrder;
+    alerts: CDSAlert[];
+  };
   verifyOrderPharmacy: (orderId: string) => void;
   dispenseOrderPharmacy: (orderId: string) => void;
   administerMedication: (params: {
     administrationId: string;
-    status: 'GIVEN' | 'NOT_GIVEN' | 'HELD';
+    status: 'GIVEN' | 'NOT_GIVEN' | 'REFUSED' | 'HELD';
     heldReason?: string;
+    injectionSite?: string;
     cosignedBy?: string;
   }) => void;
 
-  // Notes & Scribe
-  signClinicalNote: (note: Omit<ClinicalNote, "id" | "createdAt" | "version" | "status">) => ClinicalNote;
+  signClinicalNote: (noteId: string) => void;
 
-  // Emergency Code Blue Simulator
-  triggerEmergencyCode: (codeType: 'CODE_BLUE' | 'RAPID_RESPONSE' | 'CODE_STEMI', location: string) => void;
-  acknowledgeEmergencyCode: (codeId: string) => void;
-  resolveEmergencyCode: (codeId: string) => void;
+  // Simulated Emergency Actions
+  triggerEmergencyCode: (type: 'CODE_BLUE' | 'RAPID_RESPONSE' | 'CODE_STEMI', location: string) => void;
+  acknowledgeEmergencyCode: (id: string) => void;
+  resolveEmergencyCode: (id: string) => void;
 }
 
 const HospitalContext = createContext<HospitalContextType | null>(null);
 
 export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  // Master State Tables
-  const [departments, setDepartments] = useState<HospitalDepartment[]>(SEED_DEPARTMENTS);
-  const [staff] = useState<StaffMember[]>(SEED_STAFF);
-  const [currentStaff, setCurrentStaff] = useState<StaffMember>(SEED_STAFF[0]); // Default to Dr. Thorne
-  const [patients, setPatients] = useState<Patient[]>(SEED_PATIENTS);
-  const [encounters, setEncounters] = useState<Encounter[]>(SEED_ENCOUNTERS);
-  const [beds, setBeds] = useState<HospitalBed[]>(SEED_BEDS);
-  const [observations, setObservations] = useState<VitalSignObservation[]>(SEED_OBSERVATIONS);
-  const [labs, setLabs] = useState<DiagnosticLabResult[]>(SEED_LABS);
-  const [orders, setOrders] = useState<CPOEOrder[]>(SEED_ORDERS);
-  const [administrations, setAdministrations] = useState<MedicationAdministration[]>(SEED_ADMINISTRATIONS);
-  const [imaging] = useState<RadiologyStudy[]>(SEED_IMAGING);
-  const [notes, setNotes] = useState<ClinicalNote[]>(SEED_NOTES);
-  const [events, setEvents] = useState<ClinicalEvent[]>(SEED_EVENTS);
+  // 1. Facilities
+  const [facilities] = useState<HealthcareFacility[]>(() => tenantRepository.listFacilities());
+  const [activeFacilityId, setActiveFacilityId] = useState<string>("fac-st-jude");
+  const activeFacility = facilities.find((f) => f.id === activeFacilityId) || facilities[0];
+
+  // 2. Tenant Scoped Entities
+  const [departments, setDepartments] = useState<HospitalDepartment[]>(() => tenantRepository.getDepartments(activeFacilityId));
+  const [staff, setStaff] = useState<StaffMember[]>(() => tenantRepository.getStaff(activeFacilityId));
+  const [currentStaff, setCurrentStaff] = useState<StaffMember>(() => tenantRepository.getStaff(activeFacilityId)[0]);
+  const [patients, setPatients] = useState<Patient[]>(() => tenantRepository.getPatients(activeFacilityId));
+  const [encounters, setEncounters] = useState<Encounter[]>(() => tenantRepository.getEncounters(activeFacilityId));
+  const [beds, setBeds] = useState<HospitalBed[]>(() => tenantRepository.getBeds(activeFacilityId));
+  const [observations, setObservations] = useState<VitalSignObservation[]>(() => tenantRepository.getObservations(activeFacilityId));
+  const [labs, setLabs] = useState<DiagnosticLabResult[]>(() => tenantRepository.getLabs(activeFacilityId));
+  const [orders, setOrders] = useState<CPOEOrder[]>(() => tenantRepository.getOrders(activeFacilityId));
+  const [administrations, setAdministrations] = useState<MedicationAdministration[]>(() => tenantRepository.getAdministrations(activeFacilityId));
+  const [imaging, setImaging] = useState<RadiologyStudy[]>(() => tenantRepository.getImaging(activeFacilityId));
+  const [notes, setNotes] = useState<ClinicalNote[]>(() => tenantRepository.getNotes(activeFacilityId));
+  const [events, setEvents] = useState<ClinicalEvent[]>(() => tenantRepository.getEvents(activeFacilityId));
   const [activeEmergency, setActiveEmergency] = useState<SimulatedEmergencyEvent | null>(null);
 
   // Active selection
-  const [activePatientId, setActivePatientId] = useState<string>("Patient/pat-1001");
-  const [activeEncounterId, setActiveEncounterId] = useState<string>("Encounter/enc-1001");
+  const [activePatientId, setActivePatientId] = useState<string>(() => tenantRepository.getPatients(activeFacilityId)[0]?.id || "");
+  const [activeEncounterId, setActiveEncounterId] = useState<string>(() => tenantRepository.getEncounters(activeFacilityId)[0]?.id || "");
+
+  // Switch Facility Tenant
+  const switchFacility = (newFacilityId: string) => {
+    setActiveFacilityId(newFacilityId);
+    const newDepts = tenantRepository.getDepartments(newFacilityId);
+    const newStaff = tenantRepository.getStaff(newFacilityId);
+    const newPatients = tenantRepository.getPatients(newFacilityId);
+    const newEncounters = tenantRepository.getEncounters(newFacilityId);
+    const newBeds = tenantRepository.getBeds(newFacilityId);
+    const newObs = tenantRepository.getObservations(newFacilityId);
+    const newLabs = tenantRepository.getLabs(newFacilityId);
+    const newOrders = tenantRepository.getOrders(newFacilityId);
+    const newAdms = tenantRepository.getAdministrations(newFacilityId);
+    const newImg = tenantRepository.getImaging(newFacilityId);
+    const newNotes = tenantRepository.getNotes(newFacilityId);
+    const newEvents = tenantRepository.getEvents(newFacilityId);
+
+    setDepartments(newDepts);
+    setStaff(newStaff);
+    if (newStaff.length > 0) setCurrentStaff(newStaff[0]);
+    setPatients(newPatients);
+    setEncounters(newEncounters);
+    setBeds(newBeds);
+    setObservations(newObs);
+    setLabs(newLabs);
+    setOrders(newOrders);
+    setAdministrations(newAdms);
+    setImaging(newImg);
+    setNotes(newNotes);
+    setEvents(newEvents);
+    setActiveEmergency(null);
+
+    if (newPatients.length > 0) {
+      setActivePatientId(newPatients[0].id);
+    } else {
+      setActivePatientId("");
+    }
+    if (newEncounters.length > 0) {
+      setActiveEncounterId(newEncounters[0].id);
+    } else {
+      setActiveEncounterId("");
+    }
+  };
 
   // Keep active encounter synced with active patient
   useEffect(() => {
@@ -177,14 +221,15 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   ) => {
     const newEvent: ClinicalEvent = {
       id: `Event/evt-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      facilityId: activeFacilityId,
       patientId,
       encounterId,
       type,
       timestamp: new Date().toISOString(),
-      authorId: currentStaff.id,
-      authorName: currentStaff.name,
-      authorRole: currentStaff.role,
-      departmentId: currentStaff.departmentId,
+      authorId: currentStaff?.id || "Practitioner/system",
+      authorName: currentStaff?.name || "System",
+      authorRole: currentStaff?.role || "PHYSICIAN",
+      departmentId: currentStaff?.departmentId || "DEPT-DEFAULT",
       title,
       description,
       previousValue,
@@ -196,13 +241,10 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   // Switch Role
   const switchUserRole = (role: UserRole) => {
     const matched = staff.find(s => s.role === role) || staff[0];
-    setCurrentStaff(matched);
+    if (matched) setCurrentStaff(matched);
   };
 
-  // ==========================================
-  // ADT OPERATIONS
-  // ==========================================
-
+  // ADT Operations
   const admitPatient = ({
     patientId,
     departmentId,
@@ -223,6 +265,7 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const newEncounterId = `Encounter/enc-${Date.now()}`;
     const newEncounter: Encounter = {
       id: newEncounterId,
+      facilityId: activeFacilityId,
       patientId,
       encounterClass: 'INPATIENT',
       status: 'ACTIVE',
@@ -237,7 +280,6 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       careTeamIds: [currentStaff.id]
     };
 
-    // Update Bed state machine: AVAILABLE -> OCCUPIED
     setBeds(prev => prev.map(b => b.id === bedId ? {
       ...b,
       status: 'OCCUPIED',
@@ -245,7 +287,6 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       currentPatientId: patientId
     } : b));
 
-    // Update Departments census
     setDepartments(prev => prev.map(d => d.id === departmentId ? {
       ...d,
       occupiedBeds: d.occupiedBeds + 1
@@ -283,7 +324,6 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const oldBedId = targetEnc.activeBedId;
     const oldDeptId = targetEnc.departmentId;
 
-    // Release old bed: OCCUPIED -> CLEANING
     if (oldBedId) {
       setBeds(prev => prev.map(b => b.id === oldBedId ? {
         ...b,
@@ -294,7 +334,6 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       } : b));
     }
 
-    // Assign new bed: AVAILABLE -> OCCUPIED
     setBeds(prev => prev.map(b => b.id === toBedId ? {
       ...b,
       status: 'OCCUPIED',
@@ -302,14 +341,12 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       currentPatientId: targetEnc.patientId
     } : b));
 
-    // Update Encounter location
     setEncounters(prev => prev.map(e => e.id === encounterId ? {
       ...e,
       departmentId: toDepartmentId,
       activeBedId: toBedId
     } : e));
 
-    // Update department counts
     setDepartments(prev => prev.map(d => {
       if (d.id === oldDeptId) return { ...d, occupiedBeds: Math.max(0, d.occupiedBeds - 1) };
       if (d.id === toDepartmentId) return { ...d, occupiedBeds: d.occupiedBeds + 1 };
@@ -339,7 +376,6 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
     const oldBedId = targetEnc.activeBedId;
 
-    // Release bed to CLEANING
     if (oldBedId) {
       setBeds(prev => prev.map(b => b.id === oldBedId ? {
         ...b,
@@ -350,7 +386,6 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       } : b));
     }
 
-    // Close encounter
     setEncounters(prev => prev.map(e => e.id === encounterId ? {
       ...e,
       status: 'DISCHARGED',
@@ -358,7 +393,6 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       activeBedId: undefined
     } : e));
 
-    // Update census
     setDepartments(prev => prev.map(d => d.id === targetEnc.departmentId ? {
       ...d,
       occupiedBeds: Math.max(0, d.occupiedBeds - 1)
@@ -381,10 +415,7 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     } : b));
   };
 
-  // ==========================================
-  // CLINICAL OBSERVATIONS & NEWS2
-  // ==========================================
-
+  // Clinical Observations & NEWS2
   const recordVitals = (vitalsParams: {
     patientId: string;
     encounterId: string;
@@ -399,99 +430,105 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     heartRate: number;
     consciousness: 'ALERT' | 'CVPU_VOICE' | 'CVPU_PAIN' | 'CVPU_UNRESPONSIVE';
     bloodGlucoseMgDl?: number;
-  }): VitalSignObservation => {
-    const { patientId, encounterId, ...vitalEntry } = vitalsParams;
-    const calc = calculateNEWS2(vitalsParams);
-    const newObs: VitalSignObservation = {
+  }) => {
+    const { score, riskTier } = calculateNEWS2(vitalsParams);
+
+    const newObservation: VitalSignObservation = {
       id: `Observation/obs-${Date.now()}`,
-      patientId,
-      encounterId,
+      facilityId: activeFacilityId,
       timestamp: new Date().toISOString(),
       recordedBy: currentStaff.id,
-      ...vitalEntry,
-      news2Score: calc.totalScore,
-      news2RiskTier: calc.riskTier
+      ...vitalsParams,
+      news2Score: score,
+      news2RiskTier: riskTier
     };
 
-    setObservations(prev => [newObs, ...prev]);
+    setObservations(prev => [newObservation, ...prev]);
 
     emitClinicalEvent(
       'VITAL_RECORDED',
-      `Vitals Recorded (NEWS2: ${calc.totalScore} - ${calc.riskTier})`,
-      `BP ${vitalsParams.systolicBP}/${vitalsParams.diastolicBP} mmHg, HR ${vitalsParams.heartRate} bpm, SpO2 ${vitalsParams.spO2}%, RR ${vitalsParams.respirationRate} bpm, Temp ${vitalsParams.temperatureCelsius.toFixed(1)}°C. Response: ${calc.clinicalResponse}`,
+      `NEWS2 Vitals Logged: Score ${score} (${riskTier})`,
+      `HR: ${vitalsParams.heartRate} bpm, BP: ${vitalsParams.systolicBP}/${vitalsParams.diastolicBP}, RR: ${vitalsParams.respirationRate}, SpO2: ${vitalsParams.spO2}%`,
       vitalsParams.patientId,
       vitalsParams.encounterId
     );
 
-    return newObs;
+    if (riskTier === 'HIGH') {
+      emitClinicalEvent(
+        'CDS_ALERT_TRIGGERED',
+        '🚨 CRITICAL NEWS2 ALERT: Score >= 7',
+        'High physiological deterioration risk. Mandatory urgent medical team escalation required.',
+        vitalsParams.patientId,
+        vitalsParams.encounterId
+      );
+    }
   };
 
-  const updatePatientAllergy = (patientId: string, allergy: PatientAllergy) => {
+  const updatePatientAllergy = (allergy: PatientAllergy) => {
     setPatients(prev => prev.map(p => {
-      if (p.id !== patientId) return p;
-      const existingIdx = p.allergies.findIndex(a => a.id === allergy.id);
-      const updatedAllergies = [...p.allergies];
-      if (existingIdx >= 0) {
-        updatedAllergies[existingIdx] = { ...allergy, version: allergy.version + 1 };
-      } else {
-        updatedAllergies.push({ ...allergy, version: 1 });
-      }
-      return { ...p, allergies: updatedAllergies, updatedAt: new Date().toISOString() };
+      const existingAllergies = p.allergies || [];
+      const updated = existingAllergies.filter(a => a.id !== allergy.id).concat({
+        ...allergy,
+        version: allergy.version + 1
+      });
+      return { ...p, allergies: updated };
     }));
 
     emitClinicalEvent(
       'ALLERGY_RECORDED',
       `Allergy Documented: ${allergy.allergen}`,
-      `Category: ${allergy.category}, Severity: ${allergy.severity}, Reaction: ${allergy.reaction}`,
-      patientId,
+      `Severity: ${allergy.severity}. Reaction: ${allergy.reaction}`,
+      activePatientId,
       activeEncounterId
     );
   };
 
-  // ==========================================
-  // CPOE & eMAR
-  // ==========================================
-
-  const evaluateCandidateOrder = (title: string, type: string): CDSAlert[] => {
-    const patientLabs = labs.filter(l => l.patientId === activePatientId);
-    const patientOrders = orders.filter(o => o.patientId === activePatientId);
-    return CDSSafetyEngine.evaluateOrder(title, type, activePatient, patientOrders, patientLabs);
+  const evaluateCandidateOrder = (order: Partial<CPOEOrder>): CDSAlert[] => {
+    return CDSSafetyEngine.evaluateOrder({
+      candidateOrder: order,
+      patient: activePatient,
+      activeOrders: orders.filter(o => o.patientId === activePatientId && o.status === 'ACTIVE'),
+      recentLabs: labs.filter(l => l.patientId === activePatientId)
+    });
   };
 
-  const createCPOEOrder = (orderData: Omit<CPOEOrder, "id" | "orderedAt" | "orderedBy" | "status">): CPOEOrder => {
+  const createCPOEOrder = (orderData: Omit<CPOEOrder, 'id' | 'orderedAt' | 'orderedBy' | 'status' | 'facilityId'>) => {
+    const newOrderId = `Order/ord-${Date.now()}`;
     const newOrder: CPOEOrder = {
+      id: newOrderId,
+      facilityId: activeFacilityId,
       ...orderData,
-      id: `${orderData.orderType === 'MEDICATION' ? 'MedicationRequest' : 'ServiceRequest'}/ord-${Date.now()}`,
       orderedAt: new Date().toISOString(),
       orderedBy: currentStaff.id,
       status: 'ORDERED'
     };
 
+    const alerts = evaluateCandidateOrder(newOrder);
+
     setOrders(prev => [newOrder, ...prev]);
 
-    // If medication order, automatically create eMAR scheduled administration slots
-    if (orderData.orderType === 'MEDICATION' && orderData.medicationDetails) {
-      const scheduleTimes = orderData.medicationDetails.scheduleTimes || ["08:00", "20:00"];
-      const newAdms: MedicationAdministration[] = scheduleTimes.map((time, idx) => ({
+    if (newOrder.orderType === 'MEDICATION' && newOrder.medicationDetails) {
+      const newAdms: MedicationAdministration[] = (newOrder.medicationDetails.scheduleTimes || ['08:00', '20:00']).map((time, idx) => ({
         id: `MedicationAdministration/adm-${Date.now()}-${idx}`,
-        orderId: newOrder.id,
+        facilityId: activeFacilityId,
+        orderId: newOrderId,
         encounterId: newOrder.encounterId,
         patientId: newOrder.patientId,
         scheduledTime: `${new Date().toISOString().split('T')[0]}T${time}:00Z`,
-        status: 'GIVEN' // will be marked GIVEN when nurse acts
+        status: 'NOT_GIVEN'
       }));
-      setAdministrations(prev => [...newAdms, ...prev]);
+      setAdministrations(prev => [...prev, ...newAdms]);
     }
 
     emitClinicalEvent(
-      'MEDICATION_ORDERED',
-      `CPOE Order: ${newOrder.title}`,
-      `Type: ${newOrder.orderType}, Priority: ${newOrder.priority}. Description: ${newOrder.description}`,
+      newOrder.orderType === 'MEDICATION' ? 'MEDICATION_ORDERED' : 'LAB_ORDERED',
+      `Order Placed: ${newOrder.title}`,
+      `Priority: ${newOrder.priority}. Ordered by ${currentStaff.name}`,
       newOrder.patientId,
       newOrder.encounterId
     );
 
-    return newOrder;
+    return { order: newOrder, alerts };
   };
 
   const verifyOrderPharmacy = (orderId: string) => {
@@ -507,7 +544,7 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       emitClinicalEvent(
         'PHARMACY_VERIFIED',
         `Pharmacy Verified: ${order.title}`,
-        `Pharmacist ${currentStaff.name} verified order safety. Ready for Pyxis dispensing.`,
+        `Verified by ${currentStaff.name}`,
         order.patientId,
         order.encounterId
       );
@@ -525,123 +562,112 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     administrationId,
     status,
     heldReason,
+    injectionSite,
     cosignedBy
   }: {
     administrationId: string;
-    status: 'GIVEN' | 'NOT_GIVEN' | 'HELD';
+    status: 'GIVEN' | 'NOT_GIVEN' | 'REFUSED' | 'HELD';
     heldReason?: string;
+    injectionSite?: string;
     cosignedBy?: string;
   }) => {
-    setAdministrations(prev => prev.map(a => a.id === administrationId ? {
-      ...a,
+    setAdministrations(prev => prev.map(adm => adm.id === administrationId ? {
+      ...adm,
       status,
-      administeredTime: new Date().toISOString(),
+      administeredTime: status === 'GIVEN' ? new Date().toISOString() : undefined,
       administeredBy: currentStaff.id,
       heldReason,
+      injectionSite,
       cosignedBy
-    } : a));
+    } : adm));
 
-    const targetAdm = administrations.find(a => a.id === administrationId);
-    const targetOrder = orders.find(o => o.id === targetAdm?.orderId);
-
-    if (targetAdm && targetOrder) {
+    const adm = administrations.find(a => a.id === administrationId);
+    if (adm) {
+      const relatedOrder = orders.find(o => o.id === adm.orderId);
       emitClinicalEvent(
         'MEDICATION_ADMINISTERED',
-        `eMAR: ${targetOrder.title} ${status}`,
-        `Administered by ${currentStaff.name}. Status: ${status} ${heldReason ? `(Reason: ${heldReason})` : ''}`,
-        targetAdm.patientId,
-        targetAdm.encounterId
+        `eMAR Administration: ${relatedOrder?.title || 'Medication'} (${status})`,
+        `Status: ${status} by ${currentStaff.name}${heldReason ? ` - Reason: ${heldReason}` : ''}`,
+        adm.patientId,
+        adm.encounterId
       );
     }
   };
 
-  // ==========================================
-  // CLINICAL NOTES
-  // ==========================================
-
-  const signClinicalNote = (noteData: Omit<ClinicalNote, "id" | "createdAt" | "version" | "status">): ClinicalNote => {
-    const newNote: ClinicalNote = {
-      ...noteData,
-      id: `DocumentReference/note-${Date.now()}`,
-      createdAt: new Date().toISOString(),
-      signedAt: new Date().toISOString(),
-      signedBy: currentStaff.id,
+  const signClinicalNote = (noteId: string) => {
+    setNotes(prev => prev.map(n => n.id === noteId ? {
+      ...n,
       status: 'SIGNED',
-      version: 1
-    };
+      signedAt: new Date().toISOString(),
+      signedBy: currentStaff.id
+    } : n));
 
-    setNotes(prev => [newNote, ...prev]);
-
-    emitClinicalEvent(
-      'NOTE_SIGNED',
-      `Clinical Note Signed (${newNote.noteType})`,
-      `Document formally signed and locked by ${currentStaff.name}. Attached ${newNote.subjective.evidences?.length || 0} citation evidence anchors.`,
-      newNote.patientId,
-      newNote.encounterId
-    );
-
-    return newNote;
+    const note = notes.find(n => n.id === noteId);
+    if (note) {
+      emitClinicalEvent(
+        'NOTE_SIGNED',
+        `Clinical Note Signed: ${note.noteType}`,
+        `Formally signed by ${currentStaff.name}. Locked against future edits.`,
+        note.patientId,
+        note.encounterId
+      );
+    }
   };
 
-  // ==========================================
-  // SIMULATED EMERGENCY CODES
-  // ==========================================
-
-  const triggerEmergencyCode = (codeType: 'CODE_BLUE' | 'RAPID_RESPONSE' | 'CODE_STEMI', location: string) => {
-    const newCode: SimulatedEmergencyEvent = {
-      id: `EMERGENCY-${Date.now()}`,
-      codeType,
+  // Simulated Emergency Code Execution
+  const triggerEmergencyCode = (type: 'CODE_BLUE' | 'RAPID_RESPONSE' | 'CODE_STEMI', location: string) => {
+    const newEmergency: SimulatedEmergencyEvent = {
+      id: `Emergency/emg-${Date.now()}`,
+      facilityId: activeFacilityId,
+      codeType: type,
       patientId: activePatientId,
       encounterId: activeEncounterId,
       location,
       state: 'ACTIVE',
       initiatedAt: new Date().toISOString(),
-      initiatedBy: currentStaff.name,
-      clinicalSummary: `Emergency ${codeType.replace('_', ' ')} activated at ${location} for patient ${activePatient.firstName} ${activePatient.lastName}.`
+      initiatedBy: currentStaff.id,
+      clinicalSummary: `Active medical escalation initiated by ${currentStaff.name} for ${activePatient.lastName}, ${activePatient.firstName}.`
     };
 
-    setActiveEmergency(newCode);
+    setActiveEmergency(newEmergency);
 
     emitClinicalEvent(
       'EMERGENCY_CODE_TRIGGERED',
-      `🚨 SIMULATED EMERGENCY: ${codeType.replace('_', ' ')} ACTIVATED`,
-      `Location: ${location}. Initiated by ${currentStaff.name}. Rapid response team alerted.`,
+      `🚨 STAT ${type.replace('_', ' ')} ACTIVATED`,
+      `Location: ${location}. Initiated by ${currentStaff.name}`,
       activePatientId,
       activeEncounterId
     );
   };
 
-  const acknowledgeEmergencyCode = (codeId: string) => {
-    if (activeEmergency && activeEmergency.id === codeId) {
-      setActiveEmergency({
-        ...activeEmergency,
+  const acknowledgeEmergencyCode = (id: string) => {
+    if (activeEmergency && activeEmergency.id === id) {
+      setActiveEmergency(prev => prev ? {
+        ...prev,
         state: 'ACKNOWLEDGED',
         acknowledgedAt: new Date().toISOString(),
-        acknowledgedBy: currentStaff.name
-      });
+        acknowledgedBy: currentStaff.id
+      } : null);
+
       emitClinicalEvent(
         'EMERGENCY_CODE_ACKNOWLEDGED',
-        `Emergency Code Acknowledged`,
-        `Response team acknowledged on-scene at ${activeEmergency.location}.`,
+        `Emergency Team Acknowledged On-Scene`,
+        `Arrival logged by ${currentStaff.name}`,
         activeEmergency.patientId,
         activeEmergency.encounterId
       );
     }
   };
 
-  const resolveEmergencyCode = (codeId: string) => {
-    if (activeEmergency && activeEmergency.id === codeId) {
-      const resolved = {
-        ...activeEmergency,
-        state: 'RESOLVED' as const,
-        resolvedAt: new Date().toISOString(),
-        resolvedBy: currentStaff.name
-      };
+  const resolveEmergencyCode = (id: string) => {
+    if (activeEmergency && activeEmergency.id === id) {
+      const resolved = { ...activeEmergency };
       setActiveEmergency(null);
+
       emitClinicalEvent(
         'EMERGENCY_CODE_RESOLVED',
-        `Emergency Code Resolved & Debriefed`,
-        `Patient stabilized at ${resolved.location}. Code event closed by ${currentStaff.name}.`,
+        `Emergency Code Debrief & Resolution`,
+        `Event debriefed and marked resolved by ${currentStaff.name}. Patient stabilized.`,
         resolved.patientId,
         resolved.encounterId
       );
@@ -650,6 +676,10 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   return (
     <HospitalContext.Provider value={{
+      facilities,
+      activeFacilityId,
+      activeFacility,
+      switchFacility,
       departments,
       staff,
       currentStaff,

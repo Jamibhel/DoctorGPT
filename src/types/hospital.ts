@@ -1,10 +1,40 @@
 /**
- * HospitalOS - Core Clinical & Hospital Information System Types
- * Structured according to FHIR R4/R5 domain models with full lifecycle semantics.
+ * BJI MediSupport - Multi-Tenant Clinical & Healthcare Operations Types
+ * Structured according to FHIR R4/R5 domain models with strict facility multi-tenancy.
  */
 
 // ==========================================
-// 1. IDENTIFIERS & ROLES
+// 1. FACILITIES & TENANTS (CORE MULTI-TENANCY)
+// ==========================================
+
+export type FacilityType = 
+  | 'HOSPITAL' 
+  | 'CLINIC' 
+  | 'MEDICAL_CENTER' 
+  | 'DIAGNOSTIC_CENTER' 
+  | 'SPECIALIST_CENTER';
+
+export type FacilityStatus = 'ACTIVE' | 'ONBOARDING' | 'SUSPENDED' | 'MAINTENANCE';
+
+export interface HealthcareFacility {
+  id: string; // e.g. "fac-st-jude", "fac-apex-valley", "fac-metro-diag"
+  name: string;
+  code: string; // e.g. "SJM", "APX", "MDC"
+  type: FacilityType;
+  status: FacilityStatus;
+  mrnPrefix: string; // e.g. "BJI-SJM", "BJI-APX"
+  address: string;
+  phone: string;
+  email: string;
+  timezone: string;
+  totalBedCapacity: number;
+  activeCensus: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ==========================================
+// 2. IDENTIFIERS, ROLES & GRANULAR RBAC
 // ==========================================
 
 export type UserRole = 
@@ -14,8 +44,47 @@ export type UserRole =
   | 'RADIOLOGIST' 
   | 'HOSPITAL_ADMINISTRATOR';
 
+export type Permission = 
+  | 'patients:read'
+  | 'patients:create'
+  | 'patients:update'
+  | 'encounters:read'
+  | 'encounters:create'
+  | 'encounters:update'
+  | 'orders:read'
+  | 'orders:create'
+  | 'orders:cancel'
+  | 'labs:read'
+  | 'labs:create'
+  | 'labs:verify'
+  | 'medications:read'
+  | 'medications:verify'
+  | 'medications:dispense'
+  | 'medications:administer'
+  | 'vitals:read'
+  | 'vitals:create'
+  | 'notes:create'
+  | 'notes:sign'
+  | 'notes:amend'
+  | 'beds:read'
+  | 'beds:manage'
+  | 'staff:read'
+  | 'staff:manage'
+  | 'facility:settings'
+  | 'audit:read';
+
+export interface RoleDefinition {
+  id: string;
+  facilityId: string;
+  role: UserRole;
+  name: string;
+  description: string;
+  permissions: Permission[];
+}
+
 export interface StaffMember {
   id: string; // e.g. "Practitioner/dr-thorne"
+  facilityId: string; // Tenant foreign key
   name: string;
   role: UserRole;
   departmentId: string;
@@ -24,6 +93,7 @@ export interface StaffMember {
   pagerNumber?: string;
   onCall: boolean;
   activeShift: 'DAY' | 'NIGHT' | 'SWING';
+  permissions?: Permission[];
 }
 
 export type DepartmentType = 
@@ -39,6 +109,7 @@ export type DepartmentType =
 
 export interface HospitalDepartment {
   id: string; // e.g. "Department/med-surg-3"
+  facilityId: string; // Tenant foreign key
   name: string;
   type: DepartmentType;
   floor: number;
@@ -50,7 +121,7 @@ export interface HospitalDepartment {
 }
 
 // ==========================================
-// 2. PATIENT & ALLERGIES (VERSIONED)
+// 3. PATIENT & ALLERGIES (VERSIONED)
 // ==========================================
 
 export type AllergySeverity = 'MILD' | 'MODERATE' | 'SEVERE' | 'LIFE_THREATENING';
@@ -71,7 +142,8 @@ export interface PatientAllergy {
 
 export interface Patient {
   id: string; // "Patient/pat-1001"
-  mrn: string; // "SYN-849201"
+  facilityId: string; // Tenant foreign key
+  mrn: string; // e.g. "BJI-SJM-001001"
   firstName: string;
   lastName: string;
   dateOfBirth: string;
@@ -92,7 +164,7 @@ export interface Patient {
 }
 
 // ==========================================
-// 3. ENCOUNTERS, BEDS & ADT
+// 4. ENCOUNTERS, BEDS & ADT
 // ==========================================
 
 export type EncounterClass = 'INPATIENT' | 'EMERGENCY' | 'OUTPATIENT' | 'AMBULATORY';
@@ -100,6 +172,7 @@ export type EncounterStatus = 'PLANNED' | 'IN_TRIAGE' | 'ACTIVE' | 'DISCHARGE_PE
 
 export interface Encounter {
   id: string; // "Encounter/enc-2026-001"
+  facilityId: string; // Tenant foreign key
   patientId: string;
   encounterClass: EncounterClass;
   status: EncounterStatus;
@@ -119,6 +192,7 @@ export type BedStatus = 'OCCUPIED' | 'CLEANING' | 'AVAILABLE' | 'RESERVED' | 'MA
 
 export interface HospitalBed {
   id: string; // "Bed/304-B"
+  facilityId: string; // Tenant foreign key
   wardId: string;
   roomNumber: string;
   bedNumber: string;
@@ -132,6 +206,7 @@ export interface HospitalBed {
 
 export interface BedAssignment {
   id: string;
+  facilityId: string; // Tenant foreign key
   encounterId: string;
   patientId: string;
   bedId: string;
@@ -142,13 +217,14 @@ export interface BedAssignment {
 }
 
 // ==========================================
-// 4. CLINICAL OBSERVATIONS & NEWS2
+// 5. CLINICAL OBSERVATIONS & NEWS2
 // ==========================================
 
 export type ConsciousnessLevel = 'ALERT' | 'CVPU_VOICE' | 'CVPU_PAIN' | 'CVPU_UNRESPONSIVE';
 
 export interface VitalSignObservation {
   id: string; // "Observation/obs-901"
+  facilityId: string; // Tenant foreign key
   encounterId: string;
   patientId: string;
   timestamp: string;
@@ -169,7 +245,7 @@ export interface VitalSignObservation {
 }
 
 // ==========================================
-// 5. CPOE ORDERS & eMAR LIFECYCLE
+// 6. CPOE ORDERS & eMAR LIFECYCLE
 // ==========================================
 
 export type OrderType = 
@@ -192,6 +268,7 @@ export type OrderStatus =
 
 export interface CPOEOrder {
   id: string; // "MedicationRequest/med-801" or "ServiceRequest/lab-902"
+  facilityId: string; // Tenant foreign key
   encounterId: string;
   patientId: string;
   orderType: OrderType;
@@ -238,6 +315,7 @@ export type AdministrationStatus = 'GIVEN' | 'NOT_GIVEN' | 'REFUSED' | 'HELD' | 
 
 export interface MedicationAdministration {
   id: string; // "MedicationAdministration/adm-301"
+  facilityId: string; // Tenant foreign key
   orderId: string;
   encounterId: string;
   patientId: string;
@@ -253,7 +331,7 @@ export interface MedicationAdministration {
 }
 
 // ==========================================
-// 6. CLINICAL DECISION SUPPORT (CDS)
+// 7. CLINICAL DECISION SUPPORT (CDS)
 // ==========================================
 
 export type CDSAlertSeverity = 'INFO' | 'WARNING' | 'CRITICAL_CONTRAINDICATION';
@@ -268,7 +346,7 @@ export interface CDSAlert {
   clinicalRecommendation: string;
   sourceRuleId: string;
   canOverrideWithRationale: boolean;
-  aiExplanation?: string; // Natural language context from Gemini
+  aiExplanation?: string; // Natural language context
 }
 
 export interface CDSDrugInteractionRule {
@@ -291,13 +369,14 @@ export interface CDSDrugAllergyRule {
 }
 
 // ==========================================
-// 7. DIAGNOSTIC LABS & RADIOLOGY
+// 8. DIAGNOSTIC LABS & RADIOLOGY
 // ==========================================
 
 export type LabFlag = 'NORMAL' | 'HIGH' | 'LOW' | 'CRITICAL_HIGH' | 'CRITICAL_LOW';
 
 export interface DiagnosticLabResult {
   id: string; // "Observation/lab-501"
+  facilityId: string; // Tenant foreign key
   encounterId: string;
   patientId: string;
   testName: string;
@@ -314,6 +393,7 @@ export interface DiagnosticLabResult {
 
 export interface RadiologyStudy {
   id: string; // "DiagnosticReport/rad-101"
+  facilityId: string; // Tenant foreign key
   encounterId: string;
   patientId: string;
   studyType: string;
@@ -338,7 +418,7 @@ export interface RadiologyStudy {
 }
 
 // ==========================================
-// 8. CLINICAL NOTES (VERSIONED LIFECYCLE)
+// 9. CLINICAL NOTES (VERSIONED LIFECYCLE)
 // ==========================================
 
 export type NoteStatus = 'DRAFT' | 'PHYSICIAN_REVIEW' | 'SIGNED' | 'AMENDED';
@@ -360,6 +440,7 @@ export interface SoapNoteSection {
 
 export interface ClinicalNote {
   id: string; // "DocumentReference/note-101"
+  facilityId: string; // Tenant foreign key
   encounterId: string;
   patientId: string;
   authorId: string;
@@ -377,7 +458,7 @@ export interface ClinicalNote {
 }
 
 // ==========================================
-// 9. CLINICAL EVENT BUS & AUDIT LOG
+// 10. CLINICAL EVENT BUS & AUDIT LOG
 // ==========================================
 
 export type ClinicalEventType = 
@@ -403,6 +484,7 @@ export type ClinicalEventType =
 
 export interface ClinicalEvent {
   id: string; // "Event/evt-001"
+  facilityId: string; // Tenant foreign key
   patientId: string;
   encounterId: string;
   type: ClinicalEventType;
@@ -418,8 +500,24 @@ export interface ClinicalEvent {
   metadata?: Record<string, unknown>;
 }
 
+export interface AuditLogEntry {
+  id: string;
+  facilityId: string; // Tenant foreign key
+  actorId: string;
+  actorName: string;
+  actorRole: UserRole;
+  action: string;
+  resourceType: string;
+  resourceId: string;
+  patientId?: string;
+  timestamp: string;
+  previousValue?: string;
+  newValue?: string;
+  source: string;
+}
+
 // ==========================================
-// 10. SIMULATED EMERGENCY CODE ACTIONS
+// 11. SIMULATED EMERGENCY CODE ACTIONS
 // ==========================================
 
 export type EmergencyCodeType = 'CODE_BLUE' | 'RAPID_RESPONSE' | 'CODE_STEMI' | 'CODE_STROKE';
@@ -427,10 +525,11 @@ export type EmergencyCodeState = 'ACTIVE' | 'ACKNOWLEDGED' | 'ESCALATED' | 'RESO
 
 export interface SimulatedEmergencyEvent {
   id: string;
+  facilityId: string; // Tenant foreign key
   codeType: EmergencyCodeType;
   patientId: string;
   encounterId: string;
-  location: string; // e.g. "Med-Surg Ward Room 304-B"
+  location: string;
   state: EmergencyCodeState;
   initiatedAt: string;
   initiatedBy: string;

@@ -169,5 +169,40 @@ export function runClinicalUnitTests() {
     results.push({ name: "CDS Engine: Warfarin + Ibuprofen triggers DDI bleeding risk alert", passed: false, error: err.message });
   }
 
+  // TEST 6: Multi-Tenant Isolation & Repository Indexing
+  try {
+    const { tenantRepository, TenantAccessDeniedError } = require("../../db/tenant-repository");
+    
+    // 1. O(1) Indexed Lookup by MRN
+    const sjmPatient = tenantRepository.findPatientByMrn("fac-st-jude", "BJI-SJM-001001");
+    if (!sjmPatient || sjmPatient.lastName !== "Vance") {
+      throw new Error("Failed to find patient BJI-SJM-001001 via tenant index");
+    }
+
+    // 2. Cross-Tenant MRN Isolation: Searching Apex Valley for St. Jude MRN must return null
+    const crossTenantSearch = tenantRepository.findPatientByMrn("fac-apex-valley", "BJI-SJM-001001");
+    if (crossTenantSearch !== null) {
+      throw new Error("Tenant Leak: Found St. Jude patient when searching Apex Valley tenant");
+    }
+
+    // 3. Unauthorized Cross-Tenant ID Fetch: Must throw TenantAccessDeniedError
+    let caughtViolation = false;
+    try {
+      tenantRepository.getPatientById("fac-apex-valley", "Patient/pat-sjm-1001");
+    } catch (e: any) {
+      if (e instanceof TenantAccessDeniedError) {
+        caughtViolation = true;
+      }
+    }
+    if (!caughtViolation) {
+      throw new Error("Expected TenantAccessDeniedError for cross-tenant ID access");
+    }
+
+    results.push({ name: "Multi-Tenancy: Strict facility isolation & composite MRN indexing verified", passed: true });
+  } catch (err: any) {
+    results.push({ name: "Multi-Tenancy: Strict facility isolation & composite MRN indexing verified", passed: false, error: err.message });
+  }
+
   return results;
 }
+

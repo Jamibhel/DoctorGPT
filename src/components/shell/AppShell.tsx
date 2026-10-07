@@ -63,6 +63,10 @@ export const AppShell: React.FC<AppShellProps> = ({
   const { currentUser, secondsRemaining, lockSession, switchUser, availableUsers } = useSession();
   const { isInstallable, isStandalone, isOnline, promptInstall } = usePWA();
   const { 
+    facilities,
+    activeFacilityId,
+    activeFacility,
+    switchFacility,
     patients, 
     activePatientId, 
     activePatient, 
@@ -189,10 +193,27 @@ export const AppShell: React.FC<AppShellProps> = ({
                 </span>
                 <span className="text-[10px] text-bji-slate-400 font-mono">v1.0</span>
               </div>
-              <div className="text-[10px] text-bji-slate-500 font-medium truncate max-w-[180px]">
-                {currentUser.facilityName}
+              <div className="text-[10px] text-bji-slate-600 font-semibold truncate max-w-[180px]">
+                {activeFacility?.name || currentUser.facilityName}
               </div>
             </div>
+          </div>
+
+          {/* Facility Tenant Selector */}
+          <div className="hidden md:flex items-center gap-1.5 pl-2 border-l border-bji-slate-200">
+            <Building2 className="w-3.5 h-3.5 text-bji-green-600 shrink-0" />
+            <select
+              value={activeFacilityId}
+              onChange={(e) => switchFacility(e.target.value)}
+              className="h-6 px-1.5 text-[11px] font-semibold text-bji-slate-800 bg-bji-slate-100 hover:bg-bji-slate-200/80 border border-bji-slate-300 rounded-bji-xs outline-none cursor-pointer"
+              title="Switch Active Facility Tenant"
+            >
+              {facilities.map((fac) => (
+                <option key={fac.id} value={fac.id}>
+                  {fac.name} ({fac.type.replace('_', ' ')})
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Online / Standalone Badge */}
@@ -596,9 +617,30 @@ export const AppShell: React.FC<AppShellProps> = ({
         isOpen={isMobileMenuOpen}
         onClose={() => setIsMobileMenuOpen(false)}
         title="Clinical Workspaces"
-        subtitle={`${currentUser.facilityName} • ${currentUser.role}`}
+        subtitle={`${activeFacility?.name || currentUser.facilityName} • ${currentUser.role}`}
         width="sm"
       >
+        {/* Mobile / Tablet Facility Tenant Selector */}
+        <div className="p-2.5 bg-bji-slate-100 rounded-bji mb-3 border border-bji-slate-200 space-y-1">
+          <label className="text-[10px] font-bold text-bji-slate-600 uppercase tracking-wider block">
+            Active Healthcare Facility
+          </label>
+          <select
+            value={activeFacilityId}
+            onChange={(e) => {
+              switchFacility(e.target.value);
+              setIsMobileMenuOpen(false);
+            }}
+            className="w-full h-8 px-2 text-xs font-semibold text-bji-slate-900 bg-white border border-bji-slate-300 rounded-bji outline-none cursor-pointer"
+          >
+            {facilities.map((fac) => (
+              <option key={fac.id} value={fac.id}>
+                {fac.name} ({fac.type.replace('_', ' ')})
+              </option>
+            ))}
+          </select>
+        </div>
+
         <div className="space-y-1">
           <NavRailItem
             icon={<LayoutDashboard className="w-4 h-4" />}
