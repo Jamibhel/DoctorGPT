@@ -541,6 +541,13 @@ export const AppShell: React.FC<AppShellProps> = ({
                 onClick={() => onSelectView("operations")}
                 collapsed={navCollapsed}
               />
+              <NavRailItem
+                icon={<Building2 className="w-4 h-4" />}
+                label="Facility Admin"
+                isActive={activeView === "facility_admin"}
+                onClick={() => onSelectView("facility_admin")}
+                collapsed={navCollapsed}
+              />
             </nav>
 
             {/* Bottom Facility Context */}
@@ -735,6 +742,15 @@ export const AppShell: React.FC<AppShellProps> = ({
             isActive={activeView === "operations"}
             onClick={() => {
               onSelectView("operations");
+              setIsMobileMenuOpen(false);
+            }}
+          />
+          <NavRailItem
+            icon={<Building2 className="w-4 h-4" />}
+            label="Facility Admin & Catalog"
+            isActive={activeView === "facility_admin"}
+            onClick={() => {
+              onSelectView("facility_admin");
               setIsMobileMenuOpen(false);
             }}
           />

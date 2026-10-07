@@ -29,6 +29,8 @@ export interface HealthcareFacility {
   timezone: string;
   totalBedCapacity: number;
   activeCensus: number;
+  operatingHours?: string;
+  servicesCatalog?: string[];
   createdAt: string;
   updatedAt: string;
 }

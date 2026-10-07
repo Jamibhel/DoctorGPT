@@ -40,6 +40,15 @@ export const SEED_FACILITIES: HealthcareFacility[] = [
     timezone: "America/New_York",
     totalBedCapacity: 48,
     activeCensus: 32,
+    operatingHours: "24/7 Continuous Clinical Operations",
+    servicesCatalog: [
+      "Level 1 Trauma & Emergency",
+      "Intensive Care Unit (ICU)",
+      "Medical-Surgical Inpatient",
+      "Interventional Cardiology",
+      "Inpatient Pharmacy & CPOE",
+      "Diagnostic Imaging & PACS"
+    ],
     createdAt: "2026-01-15T00:00:00Z",
     updatedAt: "2026-10-01T00:00:00Z",
   },
@@ -56,6 +65,14 @@ export const SEED_FACILITIES: HealthcareFacility[] = [
     timezone: "America/Denver",
     totalBedCapacity: 16,
     activeCensus: 8,
+    operatingHours: "Mon-Sat: 07:00 - 21:00 | Urgent Care 24/7",
+    servicesCatalog: [
+      "Ambulatory Urgent Care",
+      "Short-Stay Medical Step-Down",
+      "Outpatient Surgery & Minor Procedures",
+      "Cardiopulmonary Rehabilitation",
+      "Clinical Laboratory"
+    ],
     createdAt: "2026-03-01T00:00:00Z",
     updatedAt: "2026-10-01T00:00:00Z",
   },
@@ -72,6 +89,14 @@ export const SEED_FACILITIES: HealthcareFacility[] = [
     timezone: "America/Chicago",
     totalBedCapacity: 4,
     activeCensus: 2,
+    operatingHours: "Mon-Fri: 06:00 - 22:00 | Sat: 08:00 - 18:00",
+    servicesCatalog: [
+      "High-Field MRI (3.0 Tesla)",
+      "Multi-Slice Computed Tomography (CT)",
+      "Digital Radiography & Fluoroscopy",
+      "High-Throughput Clinical Pathology",
+      "Molecular Diagnostics"
+    ],
     createdAt: "2026-05-10T00:00:00Z",
     updatedAt: "2026-10-01T00:00:00Z",
   },

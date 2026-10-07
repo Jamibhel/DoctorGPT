@@ -46,8 +46,13 @@ import { PatientTimelineView } from "../timeline/PatientTimelineView";
 import { SBARService } from "@/lib/services/sbar-service";
 import { SAMPLE_CONSULTATIONS } from "@/lib/data/sample-consultations";
 import { aiOrchestrator } from "@/lib/ai/orchestrator";
+import { FacilityOperationsWorkspace } from "../facility";
 
-export const DesktopHospitalWorkspace: React.FC = () => {
+export interface DesktopHospitalWorkspaceProps {
+  externalView?: string;
+}
+
+export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> = ({ externalView }) => {
   const {
     departments,
     staff,
@@ -83,7 +88,18 @@ export const DesktopHospitalWorkspace: React.FC = () => {
 
   // Navigation State
   // Active primary view: command center -> patient workspace -> operations/meds/imaging/pharmacy -> task-specific views
-  const [activeView, setActiveView] = useState<'command' | 'chart' | 'orders' | 'medications' | 'imaging' | 'pharmacy' | 'beds' | 'scribe' | 'operations' | 'ot'>('command');
+  const [activeView, setActiveView] = useState<'command' | 'chart' | 'orders' | 'medications' | 'imaging' | 'pharmacy' | 'beds' | 'scribe' | 'operations' | 'ot' | 'facility_admin'>('command');
+  
+  // Sync with AppShell activeView if provided
+  React.useEffect(() => {
+    if (externalView) {
+      if (externalView === 'facility_admin') {
+        setActiveView('facility_admin');
+      } else if (['command', 'chart', 'orders', 'medications', 'imaging', 'pharmacy', 'beds', 'scribe', 'operations', 'ot'].includes(externalView)) {
+        setActiveView(externalView as any);
+      }
+    }
+  }, [externalView]);
   
   // Chart Sub-Tabs: 'flowsheet' | 'labs' | 'orders' | 'imaging' | 'notes' | 'timeline'
   const [chartSubTab, setChartSubTab] = useState<'flowsheet' | 'labs' | 'orders' | 'imaging' | 'notes' | 'timeline'>('flowsheet');
@@ -547,6 +563,23 @@ export const DesktopHospitalWorkspace: React.FC = () => {
                     <span>Staff Coverage</span>
                   </div>
                   <span className="text-[10px] font-mono">{staff.length}</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveView('facility_admin')}
+                  className={`w-full text-left px-2 py-1.5 rounded-md border flex items-center justify-between transition font-medium col-span-2 ${
+                    activeView === 'facility_admin'
+                      ? 'bg-[#0f172a] text-white border-[#0f172a] font-semibold'
+                      : 'bg-white text-slate-700 border-[#d7dee7] hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Building2 className="w-4 h-4 shrink-0 text-bji-green-600" />
+                    <span>Facility Ops &amp; Admin</span>
+                  </div>
+                  <span className="text-[10px] bg-bji-green-50 text-bji-green-700 font-mono font-bold px-1 rounded border border-bji-green-200">
+                    Tenant
+                  </span>
                 </button>
               </div>
             </div>
@@ -2020,6 +2053,13 @@ export const DesktopHospitalWorkspace: React.FC = () => {
                 </div>
               </div>
             </div>
+          )}
+
+          {/* ==================================================== */}
+          {/* VIEW: FACILITY OPERATIONS & ADMIN                    */}
+          {/* ==================================================== */}
+          {activeView === 'facility_admin' && (
+            <FacilityOperationsWorkspace />
           )}
         </main>
       </div>

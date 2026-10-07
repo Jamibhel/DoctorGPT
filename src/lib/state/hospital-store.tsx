@@ -19,7 +19,8 @@ import {
   SimulatedEmergencyEvent, 
   StaffMember, 
   UserRole, 
-  VitalSignObservation 
+  VitalSignObservation,
+  AuditLogEntry 
 } from "@/types/hospital";
 import { tenantRepository } from "../db/tenant-repository";
 import { calculateNEWS2 } from "../services/news2";
@@ -118,6 +119,12 @@ interface HospitalContextType {
 
   signClinicalNote: (noteId: string) => void;
 
+  // Facility Operations & Admin
+  auditLogs: AuditLogEntry[];
+  updateFacilityConfig: (updates: Partial<HealthcareFacility>) => void;
+  createDepartment: (dept: Omit<HospitalDepartment, 'facilityId'>) => void;
+  createBed: (bed: Omit<HospitalBed, 'facilityId'>) => void;
+
   // Simulated Emergency Actions
   triggerEmergencyCode: (type: 'CODE_BLUE' | 'RAPID_RESPONSE' | 'CODE_STEMI', location: string) => void;
   acknowledgeEmergencyCode: (id: string) => void;
@@ -146,6 +153,7 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [imaging, setImaging] = useState<RadiologyStudy[]>(() => tenantRepository.getImaging(activeFacilityId));
   const [notes, setNotes] = useState<ClinicalNote[]>(() => tenantRepository.getNotes(activeFacilityId));
   const [events, setEvents] = useState<ClinicalEvent[]>(() => tenantRepository.getEvents(activeFacilityId));
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => tenantRepository.getAuditLogs(activeFacilityId));
   const [activeEmergency, setActiveEmergency] = useState<SimulatedEmergencyEvent | null>(null);
 
   // Active selection
@@ -167,6 +175,7 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const newImg = tenantRepository.getImaging(newFacilityId);
     const newNotes = tenantRepository.getNotes(newFacilityId);
     const newEvents = tenantRepository.getEvents(newFacilityId);
+    const newAudits = tenantRepository.getAuditLogs(newFacilityId);
 
     setDepartments(newDepts);
     setStaff(newStaff);
@@ -181,6 +190,7 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setImaging(newImg);
     setNotes(newNotes);
     setEvents(newEvents);
+    setAuditLogs(newAudits);
     setActiveEmergency(null);
 
     if (newPatients.length > 0) {
@@ -674,6 +684,47 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
+  // Facility Admin Operations
+  const updateFacilityConfig = (updates: Partial<HealthcareFacility>) => {
+    const updated = tenantRepository.updateFacility(
+      activeFacilityId,
+      updates,
+      currentStaff.name,
+      currentStaff.role
+    );
+    // Refresh facilities array
+    const facs = tenantRepository.listFacilities();
+    // Refresh audit logs
+    const audits = tenantRepository.getAuditLogs(activeFacilityId);
+    setAuditLogs(audits);
+  };
+
+  const createDepartment = (dept: Omit<HospitalDepartment, 'facilityId'>) => {
+    tenantRepository.addDepartment(
+      activeFacilityId,
+      dept,
+      currentStaff.name,
+      currentStaff.role
+    );
+    const updatedDepts = tenantRepository.getDepartments(activeFacilityId);
+    setDepartments(updatedDepts);
+    const audits = tenantRepository.getAuditLogs(activeFacilityId);
+    setAuditLogs(audits);
+  };
+
+  const createBed = (bed: Omit<HospitalBed, 'facilityId'>) => {
+    tenantRepository.addBed(
+      activeFacilityId,
+      bed,
+      currentStaff.name,
+      currentStaff.role
+    );
+    const updatedBeds = tenantRepository.getBeds(activeFacilityId);
+    setBeds(updatedBeds);
+    const audits = tenantRepository.getAuditLogs(activeFacilityId);
+    setAuditLogs(audits);
+  };
+
   return (
     <HospitalContext.Provider value={{
       facilities,
@@ -714,6 +765,10 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       dispenseOrderPharmacy,
       administerMedication,
       signClinicalNote,
+      auditLogs,
+      updateFacilityConfig,
+      createDepartment,
+      createBed,
       triggerEmergencyCode,
       acknowledgeEmergencyCode,
       resolveEmergencyCode

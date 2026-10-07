@@ -48,7 +48,7 @@ function BJIHospitalApp() {
       {isMobileScreen ? (
         <MobileHospitalApp />
       ) : (
-        <DesktopHospitalWorkspace />
+        <DesktopHospitalWorkspace externalView={activeView} />
       )}
 
       {/* Floating Design System Shortcut */}

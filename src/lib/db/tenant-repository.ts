@@ -179,6 +179,103 @@ export class TenantRepository {
     return this.facilities.get(facilityId) || null;
   }
 
+  public updateFacility(
+    facilityId: string, 
+    updates: Partial<HealthcareFacility>, 
+    actorId: string, 
+    actorRole: string
+  ): HealthcareFacility {
+    const existing = this.facilities.get(facilityId);
+    if (!existing) throw new Error(`Facility ${facilityId} not found`);
+
+    const updated: HealthcareFacility = {
+      ...existing,
+      ...updates,
+      updatedAt: new Date().toISOString()
+    };
+    this.facilities.set(facilityId, updated);
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName: actorId,
+      actorRole,
+      action: "FACILITY_CONFIG_UPDATED",
+      resourceType: "HealthcareFacility",
+      resourceId: facilityId,
+      timestamp: new Date().toISOString(),
+      previousValue: JSON.stringify({ name: existing.name, status: existing.status }),
+      newValue: JSON.stringify({ name: updated.name, status: updated.status }),
+      source: "Facility_Operations"
+    });
+
+    return updated;
+  }
+
+  public addDepartment(
+    facilityId: string,
+    dept: Omit<HospitalDepartment, "facilityId">,
+    actorId: string,
+    actorRole: string
+  ): HospitalDepartment {
+    const newDept: HospitalDepartment = {
+      ...dept,
+      facilityId
+    };
+    this.departments.set(newDept.id, newDept);
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName: actorId,
+      actorRole,
+      action: "DEPARTMENT_CREATED",
+      resourceType: "HospitalDepartment",
+      resourceId: newDept.id,
+      timestamp: new Date().toISOString(),
+      newValue: JSON.stringify(newDept),
+      source: "Facility_Operations"
+    });
+
+    return newDept;
+  }
+
+  public addBed(
+    facilityId: string,
+    bed: Omit<HospitalBed, "facilityId">,
+    actorId: string,
+    actorRole: string
+  ): HospitalBed {
+    const newBed: HospitalBed = {
+      ...bed,
+      facilityId
+    };
+    this.beds.set(newBed.id, newBed);
+
+    // Update index
+    const key = `${facilityId}:${newBed.wardId}`;
+    const existing = this.idxBedsByFacilityAndWard.get(key) || [];
+    this.idxBedsByFacilityAndWard.set(key, [...existing, newBed.id]);
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName: actorId,
+      actorRole,
+      action: "BED_INVENTORY_ADDED",
+      resourceType: "HospitalBed",
+      resourceId: newBed.id,
+      timestamp: new Date().toISOString(),
+      newValue: JSON.stringify(newBed),
+      source: "Facility_Operations"
+    });
+
+    return newBed;
+  }
+
   // ==========================================
   // TENANT-ISOLATED PATIENT QUERIES
   // ==========================================
