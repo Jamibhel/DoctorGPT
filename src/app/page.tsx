@@ -2,13 +2,18 @@
 
 import React, { useState, useEffect } from "react";
 import { HospitalProvider } from "@/lib/state/hospital-store";
+import { SessionProvider } from "@/lib/auth/session-context";
+import { PWAProvider } from "@/lib/pwa/pwa-context";
+import { AppShell } from "@/components/shell/AppShell";
+import { SessionLockModal } from "@/components/shell/SessionLockModal";
 import { DesktopHospitalWorkspace } from "@/components/desktop/DesktopHospitalWorkspace";
 import { MobileHospitalApp } from "@/components/mobile/MobileHospitalApp";
 import { DesignSystemShowcase } from "@/components/ui/DesignSystemShowcase";
 import { runClinicalUnitTests } from "@/lib/services/__tests__/clinical-services.test";
-import { Palette, Layout } from "lucide-react";
+import { Palette } from "lucide-react";
 
 function BJIHospitalApp() {
+  const [activeView, setActiveView] = useState("command");
   const [isMobileScreen, setIsMobileScreen] = useState(false);
   const [showDesignSystem, setShowDesignSystem] = useState(false);
 
@@ -31,11 +36,23 @@ function BJIHospitalApp() {
   }
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] relative">
-      {isMobileScreen ? <MobileHospitalApp /> : <DesktopHospitalWorkspace />}
+    <AppShell
+      activeView={activeView}
+      onSelectView={setActiveView}
+      onOpenDesignSystem={() => setShowDesignSystem(true)}
+    >
+      {/* Session Inactivity & Shared-Device Lock Modal */}
+      <SessionLockModal />
 
-      {/* Floating Design System Toggle for Review */}
-      <div className="fixed bottom-3 right-3 z-50">
+      {/* Responsive View Workspace */}
+      {isMobileScreen ? (
+        <MobileHospitalApp />
+      ) : (
+        <DesktopHospitalWorkspace />
+      )}
+
+      {/* Floating Design System Shortcut */}
+      <div className="fixed bottom-3 right-3 z-30">
         <button
           type="button"
           onClick={() => setShowDesignSystem(true)}
@@ -43,17 +60,21 @@ function BJIHospitalApp() {
           title="Inspect BJI MediSupport Design System"
         >
           <Palette className="w-3.5 h-3.5 text-bji-green-400" />
-          <span>Stage 1: Design System</span>
+          <span className="hidden sm:inline">Stage 1: Design Tokens</span>
         </button>
       </div>
-    </div>
+    </AppShell>
   );
 }
 
 export default function Root() {
   return (
     <HospitalProvider>
-      <BJIHospitalApp />
+      <SessionProvider>
+        <PWAProvider>
+          <BJIHospitalApp />
+        </PWAProvider>
+      </SessionProvider>
     </HospitalProvider>
   );
 }

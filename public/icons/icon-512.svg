@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="96" fill="#059669"/>
+  <rect x="64" y="64" width="384" height="384" rx="64" fill="#047857" opacity="0.4"/>
+  <!-- Central Clinical Cross -->
+  <rect x="216" y="112" width="80" height="288" rx="20" fill="#FFFFFF"/>
+  <rect x="112" y="216" width="288" height="80" rx="20" fill="#FFFFFF"/>
+  <!-- Connected Platform Nodes -->
+  <circle cx="256" cy="96" r="20" fill="#34D399"/>
+  <circle cx="256" cy="416" r="20" fill="#34D399"/>
+  <circle cx="96" cy="256" r="20" fill="#34D399"/>
+  <circle cx="416" cy="256" r="20" fill="#34D399"/>
+  <!-- Center Hub -->
+  <circle cx="256" cy="256" r="24" fill="#059669"/>
+</svg>
