@@ -11,6 +11,7 @@ import {
   Drawer,
   LoadingSpinner 
 } from "@/components/ui";
+import { UnifiedAuthModal } from "@/components/auth";
 import { 
   Activity, 
   AlertTriangle, 
@@ -86,6 +87,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [navCollapsed, setNavCollapsed] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isPatientSearchOpen, setIsPatientSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -428,9 +430,20 @@ export const AppShell: React.FC<AppShellProps> = ({
                   ))}
                 </div>
 
-                <div className="pt-2 border-t border-bji-slate-100 flex items-center justify-between">
+                <div className="pt-2 border-t border-bji-slate-100 flex items-center justify-between gap-1">
+                  <Button 
+                    variant="outline" 
+                    size="xs" 
+                    onClick={() => {
+                      setIsUserMenuOpen(false);
+                      setIsAuthModalOpen(true);
+                    }}
+                    className="text-[11px]"
+                  >
+                    Auth & Portals
+                  </Button>
                   <Button variant="danger" size="xs" onClick={lockSession} leftIcon={<Lock className="w-3 h-3" />}>
-                    Lock Terminal
+                    Lock
                   </Button>
                 </div>
               </div>
@@ -742,6 +755,12 @@ export const AppShell: React.FC<AppShellProps> = ({
           </Button>
         </div>
       </Drawer>
+
+      {/* Unified Authentication & Portal Modal */}
+      <UnifiedAuthModal 
+        isOpen={isAuthModalOpen} 
+        onClose={() => setIsAuthModalOpen(false)} 
+      />
     </div>
   );
 };
