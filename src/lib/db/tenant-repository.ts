@@ -17,7 +17,9 @@ import {
   RadiologyStudy, 
   ClinicalNote, 
   ClinicalEvent,
-  AuditLogEntry
+  AuditLogEntry,
+  PatientAllergy,
+  UserRole
 } from "@/types/hospital";
 
 import { 
@@ -127,15 +129,288 @@ export class TenantRepository {
       this.idxBedsByFacilityAndWard.set(key, [...existing, b.id]);
     });
 
-    // 7. Seed clinical data for St. Jude
+    // 7. Seed clinical data for St. Jude and other facility tenants
     const defaultFacilityId = "fac-st-jude";
 
-    SEED_OBSERVATIONS.forEach((obs) => {
-      const enriched: VitalSignObservation = { ...obs, facilityId: defaultFacilityId };
-      this.observations.set(enriched.id, enriched);
-      const key = `${defaultFacilityId}:${enriched.patientId}`;
+    const allSeedObservations: VitalSignObservation[] = [
+      ...SEED_OBSERVATIONS.map((obs) => ({ ...obs, facilityId: defaultFacilityId })),
+      // St Jude Patient 1 longitudinal series
+      {
+        id: "Observation/obs-sjm-101",
+        facilityId: "fac-st-jude",
+        encounterId: "Encounter/enc-sjm-1001",
+        patientId: "Patient/pat-sjm-1001",
+        timestamp: "2026-09-30T08:00:00Z",
+        recordedBy: "Practitioner/nurse-daniels",
+        respirationRate: 18,
+        spO2: 96,
+        spO2Scale: 1,
+        supplementalOxygen: false,
+        temperatureCelsius: 37.8,
+        systolicBP: 142,
+        diastolicBP: 88,
+        heartRate: 88,
+        consciousness: "ALERT",
+        bloodGlucoseMgDl: 164,
+        news2Score: 0,
+        news2RiskTier: "LOW",
+      },
+      {
+        id: "Observation/obs-sjm-102",
+        facilityId: "fac-st-jude",
+        encounterId: "Encounter/enc-sjm-1001",
+        patientId: "Patient/pat-sjm-1001",
+        timestamp: "2026-09-30T12:00:00Z",
+        recordedBy: "Practitioner/nurse-daniels",
+        respirationRate: 22,
+        spO2: 94,
+        spO2Scale: 1,
+        supplementalOxygen: false,
+        temperatureCelsius: 38.4,
+        systolicBP: 136,
+        diastolicBP: 84,
+        heartRate: 96,
+        consciousness: "ALERT",
+        bloodGlucoseMgDl: 182,
+        news2Score: 4,
+        news2RiskTier: "LOW",
+      },
+      {
+        id: "Observation/obs-sjm-103",
+        facilityId: "fac-st-jude",
+        encounterId: "Encounter/enc-sjm-1001",
+        patientId: "Patient/pat-sjm-1001",
+        timestamp: "2026-09-30T16:00:00Z",
+        recordedBy: "Practitioner/nurse-vaughn",
+        respirationRate: 26,
+        spO2: 91,
+        spO2Scale: 1,
+        supplementalOxygen: true,
+        oxygenFlowLMin: 2,
+        temperatureCelsius: 39.2,
+        systolicBP: 118,
+        diastolicBP: 72,
+        heartRate: 108,
+        consciousness: "ALERT",
+        bloodGlucoseMgDl: 210,
+        news2Score: 10,
+        news2RiskTier: "HIGH",
+      },
+      {
+        id: "Observation/obs-sjm-104",
+        facilityId: "fac-st-jude",
+        encounterId: "Encounter/enc-sjm-1001",
+        patientId: "Patient/pat-sjm-1001",
+        timestamp: "2026-09-30T18:00:00Z",
+        recordedBy: "Practitioner/nurse-daniels",
+        respirationRate: 24,
+        spO2: 95,
+        spO2Scale: 1,
+        supplementalOxygen: true,
+        oxygenFlowLMin: 4,
+        temperatureCelsius: 38.6,
+        systolicBP: 106,
+        diastolicBP: 66,
+        heartRate: 112,
+        consciousness: "ALERT",
+        bloodGlucoseMgDl: 188,
+        news2Score: 7,
+        news2RiskTier: "HIGH",
+      },
+      // Also link to alias pat-1001
+      {
+        id: "Observation/obs-sjm-105",
+        facilityId: "fac-st-jude",
+        encounterId: "Encounter/enc-1001",
+        patientId: "Patient/pat-1001",
+        timestamp: "2026-09-30T16:00:00Z",
+        recordedBy: "Practitioner/nurse-vaughn",
+        respirationRate: 26,
+        spO2: 91,
+        spO2Scale: 1,
+        supplementalOxygen: true,
+        oxygenFlowLMin: 2,
+        temperatureCelsius: 39.2,
+        systolicBP: 118,
+        diastolicBP: 72,
+        heartRate: 108,
+        consciousness: "ALERT",
+        bloodGlucoseMgDl: 210,
+        news2Score: 10,
+        news2RiskTier: "HIGH",
+      },
+      // St Jude Patient 2 series
+      {
+        id: "Observation/obs-sjm-201",
+        facilityId: "fac-st-jude",
+        encounterId: "Encounter/enc-sjm-1002",
+        patientId: "Patient/pat-sjm-1002",
+        timestamp: "2026-09-30T06:00:00Z",
+        recordedBy: "Practitioner/nurse-vaughn",
+        respirationRate: 16,
+        spO2: 97,
+        spO2Scale: 1,
+        supplementalOxygen: false,
+        temperatureCelsius: 36.7,
+        systolicBP: 110,
+        diastolicBP: 68,
+        heartRate: 64,
+        consciousness: "ALERT",
+        bloodGlucoseMgDl: 115,
+        news2Score: 1,
+        news2RiskTier: "LOW",
+      },
+      {
+        id: "Observation/obs-sjm-202",
+        facilityId: "fac-st-jude",
+        encounterId: "Encounter/enc-sjm-1002",
+        patientId: "Patient/pat-sjm-1002",
+        timestamp: "2026-09-30T14:00:00Z",
+        recordedBy: "Practitioner/nurse-vaughn",
+        respirationRate: 18,
+        spO2: 96,
+        spO2Scale: 1,
+        supplementalOxygen: false,
+        temperatureCelsius: 36.9,
+        systolicBP: 104,
+        diastolicBP: 64,
+        heartRate: 68,
+        consciousness: "ALERT",
+        bloodGlucoseMgDl: 128,
+        news2Score: 1,
+        news2RiskTier: "LOW",
+      },
+      {
+        id: "Observation/obs-sjm-203",
+        facilityId: "fac-st-jude",
+        encounterId: "Encounter/enc-sjm-1002",
+        patientId: "Patient/pat-sjm-1002",
+        timestamp: "2026-09-30T20:00:00Z",
+        recordedBy: "Practitioner/nurse-daniels",
+        respirationRate: 19,
+        spO2: 95,
+        spO2Scale: 1,
+        supplementalOxygen: false,
+        temperatureCelsius: 37.0,
+        systolicBP: 98,
+        diastolicBP: 60,
+        heartRate: 72,
+        consciousness: "ALERT",
+        bloodGlucoseMgDl: 132,
+        news2Score: 3,
+        news2RiskTier: "LOW",
+      },
+      // Apex Valley Patient 1 series
+      {
+        id: "Observation/obs-apx-201",
+        facilityId: "fac-apex-valley",
+        encounterId: "Encounter/enc-apx-2001",
+        patientId: "Patient/pat-apx-2001",
+        timestamp: "2026-09-30T08:00:00Z",
+        recordedBy: "Practitioner/nurse-song",
+        respirationRate: 16,
+        spO2: 98,
+        spO2Scale: 1,
+        supplementalOxygen: false,
+        temperatureCelsius: 36.8,
+        systolicBP: 124,
+        diastolicBP: 78,
+        heartRate: 74,
+        consciousness: "ALERT",
+        bloodGlucoseMgDl: 102,
+        news2Score: 0,
+        news2RiskTier: "LOW",
+      },
+      {
+        id: "Observation/obs-apx-202",
+        facilityId: "fac-apex-valley",
+        encounterId: "Encounter/enc-apx-2001",
+        patientId: "Patient/pat-apx-2001",
+        timestamp: "2026-09-30T12:00:00Z",
+        recordedBy: "Practitioner/nurse-song",
+        respirationRate: 18,
+        spO2: 97,
+        spO2Scale: 1,
+        supplementalOxygen: false,
+        temperatureCelsius: 37.1,
+        systolicBP: 118,
+        diastolicBP: 74,
+        heartRate: 80,
+        consciousness: "ALERT",
+        bloodGlucoseMgDl: 110,
+        news2Score: 0,
+        news2RiskTier: "LOW",
+      },
+      {
+        id: "Observation/obs-apx-203",
+        facilityId: "fac-apex-valley",
+        encounterId: "Encounter/enc-apx-2001",
+        patientId: "Patient/pat-apx-2001",
+        timestamp: "2026-09-30T16:00:00Z",
+        recordedBy: "Practitioner/nurse-song",
+        respirationRate: 19,
+        spO2: 96,
+        spO2Scale: 1,
+        supplementalOxygen: false,
+        temperatureCelsius: 37.4,
+        systolicBP: 130,
+        diastolicBP: 82,
+        heartRate: 84,
+        consciousness: "ALERT",
+        bloodGlucoseMgDl: 116,
+        news2Score: 0,
+        news2RiskTier: "LOW",
+      },
+      // Metro Diagnostic Patient 1 series
+      {
+        id: "Observation/obs-mdc-301",
+        facilityId: "fac-metro-diag",
+        encounterId: "Encounter/enc-mdc-3001",
+        patientId: "Patient/pat-mdc-3001",
+        timestamp: "2026-09-30T09:00:00Z",
+        recordedBy: "Practitioner/tech-cole",
+        respirationRate: 14,
+        spO2: 99,
+        spO2Scale: 1,
+        supplementalOxygen: false,
+        temperatureCelsius: 36.6,
+        systolicBP: 128,
+        diastolicBP: 80,
+        heartRate: 68,
+        consciousness: "ALERT",
+        bloodGlucoseMgDl: 98,
+        news2Score: 0,
+        news2RiskTier: "LOW",
+      },
+      {
+        id: "Observation/obs-mdc-302",
+        facilityId: "fac-metro-diag",
+        encounterId: "Encounter/enc-mdc-3001",
+        patientId: "Patient/pat-mdc-3001",
+        timestamp: "2026-09-30T11:30:00Z",
+        recordedBy: "Practitioner/tech-cole",
+        respirationRate: 15,
+        spO2: 98,
+        spO2Scale: 1,
+        supplementalOxygen: false,
+        temperatureCelsius: 36.7,
+        systolicBP: 122,
+        diastolicBP: 78,
+        heartRate: 70,
+        consciousness: "ALERT",
+        bloodGlucoseMgDl: 104,
+        news2Score: 0,
+        news2RiskTier: "LOW",
+      },
+    ];
+
+    allSeedObservations.forEach((obs) => {
+      this.observations.set(obs.id, obs);
+      const key = `${obs.facilityId}:${obs.patientId}`;
       const existing = this.idxVitalsByFacilityAndPatient.get(key) || [];
-      this.idxVitalsByFacilityAndPatient.set(key, [...existing, enriched.id]);
+      if (!existing.includes(obs.id)) {
+        this.idxVitalsByFacilityAndPatient.set(key, [...existing, obs.id]);
+      }
     });
 
     SEED_ORDERS.forEach((ord) => {
@@ -200,7 +475,7 @@ export class TenantRepository {
       facilityId,
       actorId,
       actorName: actorId,
-      actorRole,
+      actorRole: (actorRole as UserRole) || 'CLINICAL_STAFF',
       action: "FACILITY_CONFIG_UPDATED",
       resourceType: "HealthcareFacility",
       resourceId: facilityId,
@@ -230,7 +505,7 @@ export class TenantRepository {
       facilityId,
       actorId,
       actorName: actorId,
-      actorRole,
+      actorRole: (actorRole as UserRole) || 'CLINICAL_STAFF',
       action: "DEPARTMENT_CREATED",
       resourceType: "HospitalDepartment",
       resourceId: newDept.id,
@@ -264,7 +539,7 @@ export class TenantRepository {
       facilityId,
       actorId,
       actorName: actorId,
-      actorRole,
+      actorRole: (actorRole as UserRole) || 'CLINICAL_STAFF',
       action: "BED_INVENTORY_ADDED",
       resourceType: "HospitalBed",
       resourceId: newBed.id,
@@ -360,7 +635,7 @@ export class TenantRepository {
       facilityId,
       actorId,
       actorName: actorId,
-      actorRole,
+      actorRole: (actorRole as UserRole) || 'CLINICAL_STAFF',
       action: "PATIENT_REGISTERED",
       resourceType: "Patient",
       resourceId: newPatient.id,
@@ -401,7 +676,7 @@ export class TenantRepository {
       facilityId,
       actorId,
       actorName: actorId,
-      actorRole,
+      actorRole: (actorRole as UserRole) || 'CLINICAL_STAFF',
       action: "PATIENT_DEMOGRAPHICS_UPDATED",
       resourceType: "Patient",
       resourceId: patientId,
@@ -460,7 +735,7 @@ export class TenantRepository {
       facilityId,
       actorId,
       actorName: actorId,
-      actorRole,
+      actorRole: (actorRole as UserRole) || 'CLINICAL_STAFF',
       action: "PATIENT_ALLERGY_VERSIONED",
       resourceType: "PatientAllergy",
       resourceId: allergy.id || allergy.allergen,
@@ -604,6 +879,59 @@ export class TenantRepository {
     });
 
     return adm;
+  }
+
+  /**
+   * Record new Vital Sign Observation with tenant isolation, composite indexing, and audit trail
+   */
+  public recordObservation(
+    facilityId: string,
+    observation: VitalSignObservation,
+    actorId: string,
+    actorRole: string
+  ): VitalSignObservation {
+    const enriched: VitalSignObservation = {
+      ...observation,
+      facilityId,
+      id: observation.id || `Observation/obs-${Date.now()}`
+    };
+
+    this.observations.set(enriched.id, enriched);
+
+    // Update Composite Index: [facilityId:patientId]
+    const key = `${facilityId}:${enriched.patientId}`;
+    const existing = this.idxVitalsByFacilityAndPatient.get(key) || [];
+    this.idxVitalsByFacilityAndPatient.set(key, [enriched.id, ...existing.filter(id => id !== enriched.id)]);
+
+    // Log Audit Trail
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName: actorId,
+      actorRole: (actorRole as UserRole) || 'CLINICAL_STAFF',
+      action: "OBSERVATION_RECORDED",
+      resourceType: "VitalSignObservation",
+      resourceId: enriched.id,
+      patientId: enriched.patientId,
+      timestamp: new Date().toISOString(),
+      previousValue: undefined,
+      newValue: JSON.stringify({
+        news2Score: enriched.news2Score,
+        news2RiskTier: enriched.news2RiskTier,
+        heartRate: enriched.heartRate,
+        systolicBP: enriched.systolicBP,
+        diastolicBP: enriched.diastolicBP,
+        spO2: enriched.spO2,
+        spO2Scale: enriched.spO2Scale,
+        respirationRate: enriched.respirationRate,
+        consciousness: enriched.consciousness,
+        temperatureCelsius: enriched.temperatureCelsius
+      }),
+      source: "Vitals_Flowsheet_Workstation"
+    });
+
+    return enriched;
   }
 
   private logAudit(entry: AuditLogEntry) {

@@ -79,6 +79,7 @@ export function runClinicalUnitTests() {
   try {
     const patientWithPenicillinAllergy: Patient = {
       id: "Patient/test-1",
+      facilityId: "fac-st-jude",
       mrn: "TEST-001",
       firstName: "Test",
       lastName: "Patient",
@@ -131,6 +132,7 @@ export function runClinicalUnitTests() {
     const activeOrders: CPOEOrder[] = [
       {
         id: "ord-1",
+        facilityId: "fac-st-jude",
         encounterId: "enc-1",
         patientId: "Patient/test-1",
         orderType: "MEDICATION",
@@ -201,6 +203,76 @@ export function runClinicalUnitTests() {
     results.push({ name: "Multi-Tenancy: Strict facility isolation & composite MRN indexing verified", passed: true });
   } catch (err: any) {
     results.push({ name: "Multi-Tenancy: Strict facility isolation & composite MRN indexing verified", passed: false, error: err.message });
+  }
+
+  // TEST 7: NEWS2 Subscores Extraction & Flowsheet Color Classification
+  try {
+    const { getNEWS2Subscores, getScoreColorClasses } = require("../news2");
+    const sub = getNEWS2Subscores({
+      respirationRate: 26, // +3
+      spO2: 93, // +2
+      spO2Scale: 1,
+      supplementalOxygen: true, // +2
+      temperatureCelsius: 38.5, // +1
+      systolicBP: 105, // +1
+      diastolicBP: 70,
+      heartRate: 115, // +2
+      consciousness: 'ALERT' // 0
+    });
+    // Expected: total 11, HIGH risk, parameterMap has all 7 subscores
+    if (sub.totalScore !== 11 || sub.riskTier !== 'HIGH') {
+      throw new Error(`Expected score 11 and HIGH risk, got ${sub.totalScore} and ${sub.riskTier}`);
+    }
+    if (sub.parameterMap["Respiration Rate"]?.score !== 3) {
+      throw new Error(`Expected Respiration Rate subscore 3, got ${sub.parameterMap["Respiration Rate"]?.score}`);
+    }
+    const color3 = getScoreColorClasses(3);
+    if (!color3.badge.includes("bg-rose-100")) {
+      throw new Error(`Expected score 3 to have red/rose color badge, got ${color3.badge}`);
+    }
+    results.push({ name: "NEWS2: Subscore extraction & flowsheet color styling verified", passed: true });
+  } catch (err: any) {
+    results.push({ name: "NEWS2: Subscore extraction & flowsheet color styling verified", passed: false, error: err.message });
+  }
+
+  // TEST 8: Tenant Observation Recording & Composite Indexing
+  try {
+    const { tenantRepository } = require("../../db/tenant-repository");
+    const initialCount = tenantRepository.getObservations("fac-st-jude", "Patient/pat-sjm-1001").length;
+    
+    tenantRepository.recordObservation(
+      "fac-st-jude",
+      {
+        id: `Observation/obs-test-${Date.now()}`,
+        facilityId: "fac-st-jude",
+        encounterId: "Encounter/enc-sjm-1001",
+        patientId: "Patient/pat-sjm-1001",
+        timestamp: new Date().toISOString(),
+        recordedBy: "Practitioner/dr-test",
+        respirationRate: 16,
+        spO2: 98,
+        spO2Scale: 1,
+        supplementalOxygen: false,
+        temperatureCelsius: 37.0,
+        systolicBP: 120,
+        diastolicBP: 80,
+        heartRate: 72,
+        consciousness: "ALERT",
+        news2Score: 0,
+        news2RiskTier: "LOW"
+      },
+      "Dr. Test",
+      "PHYSICIAN"
+    );
+
+    const updatedObservations = tenantRepository.getObservations("fac-st-jude", "Patient/pat-sjm-1001");
+    if (updatedObservations.length !== initialCount + 1) {
+      throw new Error(`Expected observations count ${initialCount + 1}, got ${updatedObservations.length}`);
+    }
+
+    results.push({ name: "Multi-Tenancy: Observation recording and secondary indexing verified", passed: true });
+  } catch (err: any) {
+    results.push({ name: "Multi-Tenancy: Observation recording and secondary indexing verified", passed: false, error: err.message });
   }
 
   return results;

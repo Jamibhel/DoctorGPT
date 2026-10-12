@@ -261,7 +261,7 @@ export const SEED_PATIENTS: Patient[] = [
 // 4. BEDS
 // ==========================================
 
-export const SEED_BEDS: HospitalBed[] = [
+export const SEED_BEDS: (Omit<HospitalBed, "facilityId"> & { facilityId?: string })[] = [
   // Med-Surg Ward (Floor 3)
   {
     id: "Bed/301-A",
@@ -350,7 +350,7 @@ export const SEED_BEDS: HospitalBed[] = [
 // 5. ENCOUNTERS
 // ==========================================
 
-export const SEED_ENCOUNTERS: Encounter[] = [
+export const SEED_ENCOUNTERS: (Omit<Encounter, "facilityId"> & { facilityId?: string })[] = [
   {
     id: "Encounter/enc-1001",
     patientId: "Patient/pat-1001",
@@ -431,7 +431,7 @@ const rawObs2 = {
 };
 const news2 = calculateNEWS2(rawObs2);
 
-export const SEED_OBSERVATIONS: VitalSignObservation[] = [
+export const SEED_OBSERVATIONS: (Omit<VitalSignObservation, "facilityId"> & { facilityId?: string })[] = [
   {
     id: "Observation/obs-1001",
     encounterId: "Encounter/enc-1001",
@@ -458,7 +458,7 @@ export const SEED_OBSERVATIONS: VitalSignObservation[] = [
 // 7. DIAGNOSTIC LABS
 // ==========================================
 
-export const SEED_LABS: DiagnosticLabResult[] = [
+export const SEED_LABS: (Omit<DiagnosticLabResult, "facilityId"> & { facilityId?: string })[] = [
   // Eleanor Vance
   {
     id: "Observation/lab-101",
@@ -541,7 +541,7 @@ export const SEED_LABS: DiagnosticLabResult[] = [
 // 8. CPOE ORDERS
 // ==========================================
 
-export const SEED_ORDERS: CPOEOrder[] = [
+export const SEED_ORDERS: (Omit<CPOEOrder, "facilityId"> & { facilityId?: string })[] = [
   {
     id: "MedicationRequest/ord-101",
     encounterId: "Encounter/enc-1001",
@@ -645,7 +645,7 @@ export const SEED_ORDERS: CPOEOrder[] = [
 // 9. eMAR MEDICATION ADMINISTRATIONS
 // ==========================================
 
-export const SEED_ADMINISTRATIONS: MedicationAdministration[] = [
+export const SEED_ADMINISTRATIONS: (Omit<MedicationAdministration, "facilityId"> & { facilityId?: string })[] = [
   {
     id: "MedicationAdministration/adm-101",
     orderId: "MedicationRequest/ord-101",
@@ -716,6 +716,7 @@ export const SEED_ADMINISTRATIONS: MedicationAdministration[] = [
 export const SEED_IMAGING: RadiologyStudy[] = [
   {
     id: "DiagnosticReport/rad-101",
+    facilityId: "fac-st-jude",
     encounterId: "Encounter/enc-1001",
     patientId: "Patient/pat-1001",
     studyType: "Radiograph Bilateral Feet 3-Views",
@@ -742,6 +743,7 @@ export const SEED_IMAGING: RadiologyStudy[] = [
   },
   {
     id: "DiagnosticReport/rad-102",
+    facilityId: "fac-st-jude",
     encounterId: "Encounter/enc-1002",
     patientId: "Patient/pat-1002",
     studyType: "Chest Radiograph 2-Views (PA & Lateral)",
@@ -775,6 +777,7 @@ export const SEED_IMAGING: RadiologyStudy[] = [
 export const SEED_NOTES: ClinicalNote[] = [
   {
     id: "DocumentReference/note-1001",
+    facilityId: "fac-st-jude",
     encounterId: "Encounter/enc-1001",
     patientId: "Patient/pat-1001",
     authorId: "Practitioner/dr-thorne",
@@ -839,6 +842,7 @@ export const SEED_NOTES: ClinicalNote[] = [
 export const SEED_EVENTS: ClinicalEvent[] = [
   {
     id: "Event/evt-001",
+    facilityId: "fac-st-jude",
     patientId: "Patient/pat-1001",
     encounterId: "Encounter/enc-1001",
     type: "PATIENT_ADMITTED",
@@ -852,6 +856,7 @@ export const SEED_EVENTS: ClinicalEvent[] = [
   },
   {
     id: "Event/evt-002",
+    facilityId: "fac-st-jude",
     patientId: "Patient/pat-1001",
     encounterId: "Encounter/enc-1001",
     type: "ALLERGY_RECORDED",
@@ -865,6 +870,7 @@ export const SEED_EVENTS: ClinicalEvent[] = [
   },
   {
     id: "Event/evt-003",
+    facilityId: "fac-st-jude",
     patientId: "Patient/pat-1001",
     encounterId: "Encounter/enc-1001",
     type: "VITAL_RECORDED",
@@ -878,6 +884,7 @@ export const SEED_EVENTS: ClinicalEvent[] = [
   },
   {
     id: "Event/evt-004",
+    facilityId: "fac-st-jude",
     patientId: "Patient/pat-1001",
     encounterId: "Encounter/enc-1001",
     type: "MEDICATION_ORDERED",
@@ -891,6 +898,7 @@ export const SEED_EVENTS: ClinicalEvent[] = [
   },
   {
     id: "Event/evt-005",
+    facilityId: "fac-st-jude",
     patientId: "Patient/pat-1001",
     encounterId: "Encounter/enc-1001",
     type: "PHARMACY_VERIFIED",
@@ -904,6 +912,7 @@ export const SEED_EVENTS: ClinicalEvent[] = [
   },
   {
     id: "Event/evt-006",
+    facilityId: "fac-st-jude",
     patientId: "Patient/pat-1001",
     encounterId: "Encounter/enc-1001",
     type: "NOTE_SIGNED",

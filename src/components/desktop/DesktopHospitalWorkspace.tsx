@@ -48,6 +48,7 @@ import { SAMPLE_CONSULTATIONS } from "@/lib/data/sample-consultations";
 import { aiOrchestrator } from "@/lib/ai/orchestrator";
 import { FacilityOperationsWorkspace } from "../facility";
 import { PatientRegistryWorkspace } from "../patients";
+import { VitalsFlowsheet, VitalsEntryModal } from "../vitals";
 
 export interface DesktopHospitalWorkspaceProps {
   externalView?: string;
@@ -124,18 +125,6 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
 
   // Vitals Quick-Entry Form state
   const [isVitalsEntryOpen, setIsVitalsEntryOpen] = useState(false);
-  const [vitalsForm, setVitalsForm] = useState({
-    systolicBP: 138,
-    diastolicBP: 82,
-    heartRate: 78,
-    respirationRate: 18,
-    spO2: 97,
-    spO2Scale: 1 as 1 | 2,
-    supplementalOxygen: false,
-    temperatureCelsius: 37.1,
-    consciousness: 'ALERT' as const,
-    bloodGlucoseMgDl: 188
-  });
 
   // Ambient Scribe state
   const [selectedPreset, setSelectedPreset] = useState(SAMPLE_CONSULTATIONS[0]);
@@ -246,17 +235,6 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
     .filter(o => o.news2RiskTier === 'HIGH')
     .map(o => o.patientId)
     .filter((v, i, a) => a.indexOf(v) === i).length;
-
-  // Handle Quick Vitals Submit
-  const handleVitalsSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    recordVitals({
-      patientId: activePatientId,
-      encounterId: activeEncounterId,
-      ...vitalsForm
-    });
-    setIsVitalsEntryOpen(false);
-  };
 
   // Generate SBAR Handover
   const handleGenerateSBAR = () => {
@@ -1052,150 +1030,7 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
 
               {/* SUB-TAB 1: VITALS FLOWSHEET MATRIX */}
               {chartSubTab === 'flowsheet' && (
-                <div className="bg-white rounded-lg border border-slate-200 shadow-xs overflow-hidden">
-                  <div className="p-3 border-b border-slate-100 flex items-center justify-between bg-slate-50/70">
-                    <div className="flex items-center space-x-2">
-                      <Activity className="w-4 h-4 text-blue-600" />
-                      <h3 className="font-bold text-xs uppercase tracking-wider text-slate-900">
-                        Inpatient Clinical Flowsheet (Spreadsheet Matrix)
-                      </h3>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-xs text-slate-400 font-mono">{patientObservations.length} timestamp logs</span>
-                      <button
-                        onClick={() => setIsVitalsEntryOpen(true)}
-                        className="px-2.5 py-1 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded"
-                      >
-                        + Log Set
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-xs text-left">
-                      <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
-                        <tr>
-                          <th className="py-2.5 px-3">Clinical Parameter</th>
-                          <th className="py-2.5 px-3">Ref Range</th>
-                          {patientObservations.map((obs) => (
-                            <th key={obs.id} className="py-2.5 px-3 font-mono">
-                              {new Date(obs.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                            </th>
-                          ))}
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-slate-100">
-                        {/* Systolic BP */}
-                        <tr className="hover:bg-slate-50">
-                          <td className="py-2 px-3 font-semibold text-slate-800">Systolic Blood Pressure</td>
-                          <td className="py-2 px-3 font-mono text-slate-400">100 - 139 mmHg</td>
-                          {patientObservations.map(obs => (
-                            <td key={obs.id} className={`py-2 px-3 font-mono font-bold ${
-                              obs.systolicBP > 140 || obs.systolicBP < 90 ? 'bg-red-50 text-red-700' : 'text-slate-800'
-                            }`}>
-                              {obs.systolicBP}
-                            </td>
-                          ))}
-                        </tr>
-
-                        {/* Diastolic BP */}
-                        <tr className="hover:bg-slate-50">
-                          <td className="py-2 px-3 font-semibold text-slate-800">Diastolic Blood Pressure</td>
-                          <td className="py-2 px-3 font-mono text-slate-400">60 - 89 mmHg</td>
-                          {patientObservations.map(obs => (
-                            <td key={obs.id} className={`py-2 px-3 font-mono font-bold ${
-                              obs.diastolicBP > 90 || obs.diastolicBP < 60 ? 'bg-amber-50 text-amber-800' : 'text-slate-800'
-                            }`}>
-                              {obs.diastolicBP}
-                            </td>
-                          ))}
-                        </tr>
-
-                        {/* Heart Rate */}
-                        <tr className="hover:bg-slate-50">
-                          <td className="py-2 px-3 font-semibold text-slate-800">Heart Rate (Pulse)</td>
-                          <td className="py-2 px-3 font-mono text-slate-400">51 - 90 bpm</td>
-                          {patientObservations.map(obs => (
-                            <td key={obs.id} className={`py-2 px-3 font-mono font-bold ${
-                              obs.heartRate > 90 || obs.heartRate < 50 ? 'bg-red-50 text-red-700' : 'text-slate-800'
-                            }`}>
-                              {obs.heartRate}
-                            </td>
-                          ))}
-                        </tr>
-
-                        {/* Respiration Rate */}
-                        <tr className="hover:bg-slate-50">
-                          <td className="py-2 px-3 font-semibold text-slate-800">Respiration Rate</td>
-                          <td className="py-2 px-3 font-mono text-slate-400">12 - 20 /min</td>
-                          {patientObservations.map(obs => (
-                            <td key={obs.id} className={`py-2 px-3 font-mono font-bold ${
-                              obs.respirationRate > 20 || obs.respirationRate < 12 ? 'bg-amber-50 text-amber-800' : 'text-slate-800'
-                            }`}>
-                              {obs.respirationRate}
-                            </td>
-                          ))}
-                        </tr>
-
-                        {/* SpO2 */}
-                        <tr className="hover:bg-slate-50">
-                          <td className="py-2 px-3 font-semibold text-slate-800">Oxygen Saturation (SpO2)</td>
-                          <td className="py-2 px-3 font-mono text-slate-400">≥ 96%</td>
-                          {patientObservations.map(obs => (
-                            <td key={obs.id} className={`py-2 px-3 font-mono font-bold ${
-                              obs.spO2 < 95 ? 'bg-red-50 text-red-700' : 'text-slate-800'
-                            }`}>
-                              {obs.spO2}% {obs.supplementalOxygen && <span className="text-[10px] text-blue-600">(O2)</span>}
-                            </td>
-                          ))}
-                        </tr>
-
-                        {/* Temperature */}
-                        <tr className="hover:bg-slate-50">
-                          <td className="py-2 px-3 font-semibold text-slate-800">Temperature</td>
-                          <td className="py-2 px-3 font-mono text-slate-400">36.1 - 38.0 °C</td>
-                          {patientObservations.map(obs => (
-                            <td key={obs.id} className="py-2 px-3 font-mono text-slate-800">
-                              {obs.temperatureCelsius.toFixed(1)}°C
-                            </td>
-                          ))}
-                        </tr>
-
-                        {/* Blood Glucose */}
-                        <tr className="hover:bg-slate-50">
-                          <td className="py-2 px-3 font-semibold text-slate-800">Fingerstick Glucose</td>
-                          <td className="py-2 px-3 font-mono text-slate-400">70 - 140 mg/dL</td>
-                          {patientObservations.map(obs => (
-                            <td key={obs.id} className={`py-2 px-3 font-mono font-bold ${
-                              (obs.bloodGlucoseMgDl || 0) > 180 ? 'bg-red-50 text-red-700' : 'text-slate-800'
-                            }`}>
-                              {obs.bloodGlucoseMgDl || '--'}
-                            </td>
-                          ))}
-                        </tr>
-
-                        {/* NEWS2 Total Score */}
-                        <tr className="bg-slate-50 font-bold border-t border-slate-200">
-                          <td className="py-2.5 px-3 text-blue-900 font-bold">RCP NEWS2 Aggregate Score</td>
-                          <td className="py-2.5 px-3 font-mono text-slate-400">0 - 4 Normal</td>
-                          {patientObservations.map(obs => (
-                            <td key={obs.id} className="py-2.5 px-3">
-                              <span className={`px-2 py-0.5 rounded text-[11px] font-mono font-bold ${
-                                obs.news2RiskTier === 'HIGH'
-                                  ? 'bg-red-600 text-white'
-                                  : obs.news2RiskTier === 'MEDIUM'
-                                  ? 'bg-amber-500 text-white'
-                                  : 'bg-emerald-600 text-white'
-                              }`}>
-                                {obs.news2Score} ({obs.news2RiskTier})
-                              </span>
-                            </td>
-                          ))}
-                        </tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
+                <VitalsFlowsheet onOpenRecordModal={() => setIsVitalsEntryOpen(true)} />
               )}
 
               {/* SUB-TAB 2: DIAGNOSTIC LABS TABLE */}
@@ -2106,99 +1941,11 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
         onClose={() => setSelectedStudyForPacs(null)}
       />
 
-      {/* QUICK INPATIENT VITALS ENTRY MODAL */}
-      {isVitalsEntryOpen && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-5 shadow-2xl border border-slate-200 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-              <h3 className="font-bold text-sm text-slate-900">Record Inpatient Vitals (NEWS2 Engine)</h3>
-              <button onClick={() => setIsVitalsEntryOpen(false)} className="text-slate-400 hover:text-slate-600">✕</button>
-            </div>
-
-            <form onSubmit={handleVitalsSubmit} className="space-y-3 text-xs">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-600 mb-1 font-semibold">Systolic BP (mmHg)</label>
-                  <input
-                    type="number"
-                    value={vitalsForm.systolicBP}
-                    onChange={(e) => setVitalsForm({ ...vitalsForm, systolicBP: Number(e.target.value) })}
-                    className="w-full p-2 bg-slate-50 border rounded font-mono font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-600 mb-1 font-semibold">Diastolic BP (mmHg)</label>
-                  <input
-                    type="number"
-                    value={vitalsForm.diastolicBP}
-                    onChange={(e) => setVitalsForm({ ...vitalsForm, diastolicBP: Number(e.target.value) })}
-                    className="w-full p-2 bg-slate-50 border rounded font-mono font-bold"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-600 mb-1 font-semibold">Heart Rate (bpm)</label>
-                  <input
-                    type="number"
-                    value={vitalsForm.heartRate}
-                    onChange={(e) => setVitalsForm({ ...vitalsForm, heartRate: Number(e.target.value) })}
-                    className="w-full p-2 bg-slate-50 border rounded font-mono font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-600 mb-1 font-semibold">Respiration Rate</label>
-                  <input
-                    type="number"
-                    value={vitalsForm.respirationRate}
-                    onChange={(e) => setVitalsForm({ ...vitalsForm, respirationRate: Number(e.target.value) })}
-                    className="w-full p-2 bg-slate-50 border rounded font-mono font-bold"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-slate-600 mb-1 font-semibold">SpO2 (%)</label>
-                  <input
-                    type="number"
-                    value={vitalsForm.spO2}
-                    onChange={(e) => setVitalsForm({ ...vitalsForm, spO2: Number(e.target.value) })}
-                    className="w-full p-2 bg-slate-50 border rounded font-mono font-bold"
-                  />
-                </div>
-                <div>
-                  <label className="block text-slate-600 mb-1 font-semibold">Temperature (°C)</label>
-                  <input
-                    type="number"
-                    step="0.1"
-                    value={vitalsForm.temperatureCelsius}
-                    onChange={(e) => setVitalsForm({ ...vitalsForm, temperatureCelsius: Number(e.target.value) })}
-                    className="w-full p-2 bg-slate-50 border rounded font-mono font-bold"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-3 border-t flex justify-end space-x-2">
-                <button
-                  type="button"
-                  onClick={() => setIsVitalsEntryOpen(false)}
-                  className="px-3 py-1.5 border rounded text-slate-600 text-xs"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded"
-                >
-                  Save &amp; Compute NEWS2
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* QUICK INPATIENT VITALS ENTRY MODAL (NEWS2 ENGINE) */}
+      <VitalsEntryModal
+        isOpen={isVitalsEntryOpen}
+        onClose={() => setIsVitalsEntryOpen(false)}
+      />
     </div>
   );
 };

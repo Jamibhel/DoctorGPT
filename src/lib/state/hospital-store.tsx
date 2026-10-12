@@ -445,33 +445,42 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     consciousness: 'ALERT' | 'CVPU_VOICE' | 'CVPU_PAIN' | 'CVPU_UNRESPONSIVE';
     bloodGlucoseMgDl?: number;
   }) => {
-    const { score, riskTier } = calculateNEWS2(vitalsParams);
+    const { totalScore, riskTier, hasSingleParameterRedAlert, clinicalResponse } = calculateNEWS2(vitalsParams);
 
     const newObservation: VitalSignObservation = {
       id: `Observation/obs-${Date.now()}`,
       facilityId: activeFacilityId,
       timestamp: new Date().toISOString(),
-      recordedBy: currentStaff.id,
+      recordedBy: currentStaff.name || currentStaff.id,
       ...vitalsParams,
-      news2Score: score,
+      news2Score: totalScore,
       news2RiskTier: riskTier
     };
 
-    setObservations(prev => [newObservation, ...prev]);
+    // Persist to tenant repository with index update and audit trail
+    tenantRepository.recordObservation(
+      activeFacilityId,
+      newObservation,
+      currentStaff.name,
+      currentStaff.role
+    );
+
+    // Refresh state
+    setObservations(tenantRepository.getObservations(activeFacilityId));
 
     emitClinicalEvent(
       'VITAL_RECORDED',
-      `NEWS2 Vitals Logged: Score ${score} (${riskTier})`,
-      `HR: ${vitalsParams.heartRate} bpm, BP: ${vitalsParams.systolicBP}/${vitalsParams.diastolicBP}, RR: ${vitalsParams.respirationRate}, SpO2: ${vitalsParams.spO2}%`,
+      `NEWS2 Vitals Logged: Score ${totalScore} (${riskTier})`,
+      `HR: ${vitalsParams.heartRate} bpm, BP: ${vitalsParams.systolicBP}/${vitalsParams.diastolicBP}, RR: ${vitalsParams.respirationRate}, SpO2: ${vitalsParams.spO2}% (${vitalsParams.spO2Scale === 2 ? 'Scale 2 Hypercapnic' : 'Scale 1'})`,
       vitalsParams.patientId,
       vitalsParams.encounterId
     );
 
-    if (riskTier === 'HIGH') {
+    if (riskTier === 'HIGH' || hasSingleParameterRedAlert) {
       emitClinicalEvent(
         'CDS_ALERT_TRIGGERED',
-        '🚨 CRITICAL NEWS2 ALERT: Score >= 7',
-        'High physiological deterioration risk. Mandatory urgent medical team escalation required.',
+        `🚨 CRITICAL NEWS2 ALERT: Score ${totalScore} (${riskTier})`,
+        clinicalResponse || 'High physiological deterioration risk. Mandatory urgent medical team escalation required.',
         vitalsParams.patientId,
         vitalsParams.encounterId
       );
@@ -538,12 +547,13 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const evaluateCandidateOrder = (order: Partial<CPOEOrder>): CDSAlert[] => {
-    return CDSSafetyEngine.evaluateOrder({
-      candidateOrder: order,
-      patient: activePatient,
-      activeOrders: orders.filter(o => o.patientId === activePatientId && o.status === 'ACTIVE'),
-      recentLabs: labs.filter(l => l.patientId === activePatientId)
-    });
+    return CDSSafetyEngine.evaluateOrder(
+      order.title || "",
+      order.orderType || "MEDICATION",
+      activePatient,
+      orders.filter(o => o.patientId === activePatientId && o.status === 'ACTIVE'),
+      labs.filter(l => l.patientId === activePatientId)
+    );
   };
 
   const createCPOEOrder = (orderData: Omit<CPOEOrder, 'id' | 'orderedAt' | 'orderedBy' | 'status' | 'facilityId'>) => {

@@ -69,8 +69,13 @@ export const NEWS2_CONFIG = {
   ]
 };
 
+export type NEWS2VitalsInput = Omit<
+  VitalSignObservation,
+  "id" | "facilityId" | "encounterId" | "patientId" | "timestamp" | "recordedBy" | "news2Score" | "news2RiskTier"
+>;
+
 export function calculateNEWS2(
-  vitals: Omit<VitalSignObservation, "id" | "encounterId" | "patientId" | "timestamp" | "recordedBy" | "news2Score" | "news2RiskTier">
+  vitals: NEWS2VitalsInput
 ): NEWS2CalculationResult {
   const breakdown: NEWS2ParameterResult[] = [];
   let totalScore = 0;
@@ -207,3 +212,94 @@ export function calculateNEWS2(
     breakdown
   };
 }
+
+export function getNEWS2Subscores(
+  vitals: NEWS2VitalsInput
+) {
+  const result = calculateNEWS2(vitals);
+  const map: Record<string, { score: number; rationale: string }> = {};
+  result.breakdown.forEach((b) => {
+    map[b.parameter] = { score: b.score, rationale: b.scoringRationale };
+  });
+  return {
+    ...result,
+    parameterMap: map,
+  };
+}
+
+export function getScoreColorClasses(score: number): {
+  bg: string;
+  text: string;
+  border: string;
+  badge: string;
+} {
+  switch (score) {
+    case 1:
+      return {
+        bg: "bg-amber-50",
+        text: "text-amber-800",
+        border: "border-amber-200",
+        badge: "bg-amber-100 text-amber-800 border-amber-300"
+      };
+    case 2:
+      return {
+        bg: "bg-orange-50",
+        text: "text-orange-800",
+        border: "border-orange-300",
+        badge: "bg-orange-100 text-orange-800 border-orange-300"
+      };
+    case 3:
+      return {
+        bg: "bg-rose-50",
+        text: "text-rose-800 font-bold",
+        border: "border-rose-300",
+        badge: "bg-rose-100 text-rose-800 border-rose-300"
+      };
+    default:
+      return {
+        bg: "bg-slate-50/50",
+        text: "text-slate-700",
+        border: "border-slate-200",
+        badge: "bg-slate-100 text-slate-700 border-slate-200"
+      };
+  }
+}
+
+export function getRiskTierBadgeClasses(tier: 'LOW' | 'LOW_MEDIUM' | 'MEDIUM' | 'HIGH'): {
+  bg: string;
+  text: string;
+  border: string;
+  label: string;
+} {
+  switch (tier) {
+    case 'HIGH':
+      return {
+        bg: "bg-rose-600",
+        text: "text-white",
+        border: "border-rose-700",
+        label: "HIGH RISK (Emergency Escalation)"
+      };
+    case 'MEDIUM':
+      return {
+        bg: "bg-amber-500",
+        text: "text-white",
+        border: "border-amber-600",
+        label: "MEDIUM RISK (Urgent Clinician Review)"
+      };
+    case 'LOW_MEDIUM':
+      return {
+        bg: "bg-amber-400",
+        text: "text-slate-900",
+        border: "border-amber-500",
+        label: "LOW-MEDIUM (Single Red 3 Alert)"
+      };
+    default:
+      return {
+        bg: "bg-emerald-600",
+        text: "text-white",
+        border: "border-emerald-700",
+        label: "LOW RISK (Ward Routine)"
+      };
+  }
+}
+
