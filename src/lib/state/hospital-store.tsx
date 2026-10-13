@@ -106,7 +106,7 @@ interface HospitalContextType {
   updatePatientAllergy: (allergy: PatientAllergy) => void;
   searchPatientsGlobal: (query: string) => { patient: Patient; facility: HealthcareFacility }[];
 
-  evaluateCandidateOrder: (order: Partial<CPOEOrder>) => CDSAlert[];
+  evaluateCandidateOrder: (orderOrTitle: Partial<CPOEOrder> | string, optionalType?: OrderType) => CDSAlert[];
   createCPOEOrder: (order: Omit<CPOEOrder, 'id' | 'orderedAt' | 'orderedBy' | 'status' | 'facilityId'>) => {
     order: CPOEOrder;
     alerts: CDSAlert[];
@@ -546,10 +546,13 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return tenantRepository.searchPatientsGlobal(query);
   };
 
-  const evaluateCandidateOrder = (order: Partial<CPOEOrder>): CDSAlert[] => {
+  const evaluateCandidateOrder = (orderOrTitle: Partial<CPOEOrder> | string, optionalType?: OrderType): CDSAlert[] => {
+    const title = typeof orderOrTitle === 'string' ? orderOrTitle : (orderOrTitle.title || "");
+    const type = typeof orderOrTitle === 'string' ? (optionalType || "MEDICATION") : (orderOrTitle.orderType || "MEDICATION");
+
     return CDSSafetyEngine.evaluateOrder(
-      order.title || "",
-      order.orderType || "MEDICATION",
+      title,
+      type,
       activePatient,
       orders.filter(o => o.patientId === activePatientId && o.status === 'ACTIVE'),
       labs.filter(l => l.patientId === activePatientId)
@@ -557,37 +560,33 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const createCPOEOrder = (orderData: Omit<CPOEOrder, 'id' | 'orderedAt' | 'orderedBy' | 'status' | 'facilityId'>) => {
-    const newOrderId = `Order/ord-${Date.now()}`;
-    const newOrder: CPOEOrder = {
-      id: newOrderId,
-      facilityId: activeFacilityId,
-      ...orderData,
-      orderedAt: new Date().toISOString(),
-      orderedBy: currentStaff.id,
-      status: 'ORDERED'
-    };
+    const alerts = evaluateCandidateOrder(orderData.title, orderData.orderType);
 
-    const alerts = evaluateCandidateOrder(newOrder);
+    const { order: newOrder, createdAdministrations } = tenantRepository.atomicCreateOrder(
+      activeFacilityId,
+      {
+        ...orderData,
+        orderedBy: currentStaff.id,
+        status: 'ORDERED'
+      },
+      currentStaff.id,
+      currentStaff.name,
+      currentStaff.role
+    );
 
-    setOrders(prev => [newOrder, ...prev]);
+    // Refresh tenant-scoped orders & administrations & audits
+    const updatedOrders = tenantRepository.getOrders(activeFacilityId);
+    const updatedAdms = tenantRepository.getAdministrations(activeFacilityId);
+    setOrders(updatedOrders);
+    setAdministrations(updatedAdms);
 
-    if (newOrder.orderType === 'MEDICATION' && newOrder.medicationDetails) {
-      const newAdms: MedicationAdministration[] = (newOrder.medicationDetails.scheduleTimes || ['08:00', '20:00']).map((time, idx) => ({
-        id: `MedicationAdministration/adm-${Date.now()}-${idx}`,
-        facilityId: activeFacilityId,
-        orderId: newOrderId,
-        encounterId: newOrder.encounterId,
-        patientId: newOrder.patientId,
-        scheduledTime: `${new Date().toISOString().split('T')[0]}T${time}:00Z`,
-        status: 'NOT_GIVEN'
-      }));
-      setAdministrations(prev => [...prev, ...newAdms]);
-    }
+    const audits = tenantRepository.getAuditLogs(activeFacilityId);
+    setAuditLogs(audits);
 
     emitClinicalEvent(
       newOrder.orderType === 'MEDICATION' ? 'MEDICATION_ORDERED' : 'LAB_ORDERED',
       `Order Placed: ${newOrder.title}`,
-      `Priority: ${newOrder.priority}. Ordered by ${currentStaff.name}`,
+      `Priority: ${newOrder.priority}. Ordered by ${currentStaff.name}${newOrder.cdsAlertsDismissed && newOrder.cdsAlertsDismissed.length > 0 ? ` (CDS Intercept Overridden: ${newOrder.cdsAlertsDismissed.length})` : ''}`,
       newOrder.patientId,
       newOrder.encounterId
     );
@@ -596,66 +595,99 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   };
 
   const verifyOrderPharmacy = (orderId: string) => {
-    setOrders(prev => prev.map(o => o.id === orderId ? {
-      ...o,
-      status: 'PHARMACY_VERIFIED',
-      verifiedAt: new Date().toISOString(),
-      verifiedBy: currentStaff.id
-    } : o));
+    const verifiedOrder = tenantRepository.atomicVerifyOrder(
+      activeFacilityId,
+      orderId,
+      currentStaff.id,
+      currentStaff.name,
+      currentStaff.role
+    );
 
-    const order = orders.find(o => o.id === orderId);
-    if (order) {
-      emitClinicalEvent(
-        'PHARMACY_VERIFIED',
-        `Pharmacy Verified: ${order.title}`,
-        `Verified by ${currentStaff.name}`,
-        order.patientId,
-        order.encounterId
-      );
-    }
+    const updatedOrders = tenantRepository.getOrders(activeFacilityId);
+    setOrders(updatedOrders);
+
+    const audits = tenantRepository.getAuditLogs(activeFacilityId);
+    setAuditLogs(audits);
+
+    emitClinicalEvent(
+      'PHARMACY_VERIFIED',
+      `Pharmacy Verified: ${verifiedOrder.title}`,
+      `Pharmacist review confirmed by ${currentStaff.name}. Safe for automated dispensing.`,
+      verifiedOrder.patientId,
+      verifiedOrder.encounterId
+    );
   };
 
   const dispenseOrderPharmacy = (orderId: string) => {
-    setOrders(prev => prev.map(o => o.id === orderId ? {
-      ...o,
-      status: 'DISPENSED'
-    } : o));
+    const dispensedOrder = tenantRepository.atomicDispenseOrder(
+      activeFacilityId,
+      orderId,
+      currentStaff.id,
+      currentStaff.name,
+      currentStaff.role
+    );
+
+    const updatedOrders = tenantRepository.getOrders(activeFacilityId);
+    setOrders(updatedOrders);
+
+    const audits = tenantRepository.getAuditLogs(activeFacilityId);
+    setAuditLogs(audits);
+
+    emitClinicalEvent(
+      'PHARMACY_DISPENSED',
+      `Medication Dispensed: ${dispensedOrder.title}`,
+      `Dispensed by automated pyxis / cart under pharmacy authorization by ${currentStaff.name}. Ready for bedside eMAR administration.`,
+      dispensedOrder.patientId,
+      dispensedOrder.encounterId
+    );
   };
 
   const administerMedication = ({
     administrationId,
     status,
+    doseGiven,
+    routeGiven,
     heldReason,
     injectionSite,
     cosignedBy
   }: {
     administrationId: string;
     status: 'GIVEN' | 'NOT_GIVEN' | 'REFUSED' | 'HELD';
+    doseGiven?: string;
+    routeGiven?: string;
     heldReason?: string;
     injectionSite?: string;
     cosignedBy?: string;
   }) => {
-    setAdministrations(prev => prev.map(adm => adm.id === administrationId ? {
-      ...adm,
+    const updatedAdm = tenantRepository.atomicAdministerMedication(
+      activeFacilityId,
+      administrationId,
       status,
-      administeredTime: status === 'GIVEN' ? new Date().toISOString() : undefined,
-      administeredBy: currentStaff.id,
-      heldReason,
-      injectionSite,
-      cosignedBy
-    } : adm));
+      currentStaff.id,
+      currentStaff.name,
+      {
+        doseGiven,
+        routeGiven,
+        heldReason,
+        injectionSite,
+        cosignedBy
+      }
+    );
 
-    const adm = administrations.find(a => a.id === administrationId);
-    if (adm) {
-      const relatedOrder = orders.find(o => o.id === adm.orderId);
-      emitClinicalEvent(
-        'MEDICATION_ADMINISTERED',
-        `eMAR Administration: ${relatedOrder?.title || 'Medication'} (${status})`,
-        `Status: ${status} by ${currentStaff.name}${heldReason ? ` - Reason: ${heldReason}` : ''}`,
-        adm.patientId,
-        adm.encounterId
-      );
-    }
+    const updatedAdms = tenantRepository.getAdministrations(activeFacilityId);
+    setAdministrations(updatedAdms);
+
+    const audits = tenantRepository.getAuditLogs(activeFacilityId);
+    setAuditLogs(audits);
+
+    const relatedOrder = orders.find(o => o.id === updatedAdm.orderId);
+    emitClinicalEvent(
+      'MEDICATION_ADMINISTERED',
+      `eMAR Administration: ${relatedOrder?.title || 'Medication'} (${status})`,
+      `Status: ${status} by ${currentStaff.name}${heldReason ? ` - Hold Reason: ${heldReason}` : ''}${cosignedBy ? ` - Cosigned by: ${cosignedBy}` : ''}`,
+      updatedAdm.patientId,
+      updatedAdm.encounterId
+    );
   };
 
   const signClinicalNote = (noteId: string) => {

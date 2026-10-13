@@ -844,11 +844,162 @@ export class TenantRepository {
   // ATOMIC MUTATIONS WITH AUDIT TRAIL LOGGING
   // ==========================================
 
+  public atomicCreateOrder(
+    facilityId: string,
+    orderData: Omit<CPOEOrder, 'id' | 'orderedAt' | 'facilityId'>,
+    actorId: string,
+    actorName: string,
+    actorRole: string
+  ): { order: CPOEOrder; createdAdministrations: MedicationAdministration[] } {
+    const orderId = `Order/ord-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const newOrder: CPOEOrder = {
+      ...orderData,
+      id: orderId,
+      facilityId,
+      orderedAt: new Date().toISOString(),
+      orderedBy: actorId,
+    };
+
+    this.orders.set(orderId, newOrder);
+
+    // Update Composite Index: [facilityId:patientId]
+    const key = `${facilityId}:${newOrder.patientId}`;
+    const existing = this.idxOrdersByFacilityAndPatient.get(key) || [];
+    this.idxOrdersByFacilityAndPatient.set(key, [orderId, ...existing.filter(id => id !== orderId)]);
+
+    // Generate eMAR schedules if MEDICATION
+    const createdAdministrations: MedicationAdministration[] = [];
+    if (newOrder.orderType === 'MEDICATION' && newOrder.medicationDetails) {
+      const scheduleTimes = newOrder.medicationDetails.scheduleTimes || ['08:00', '20:00'];
+      const today = new Date().toISOString().split('T')[0];
+
+      scheduleTimes.forEach((time, idx) => {
+        const admId = `MedicationAdministration/adm-${Date.now()}-${idx}-${Math.random().toString(36).slice(2, 5)}`;
+        const adm: MedicationAdministration = {
+          id: admId,
+          facilityId,
+          orderId,
+          encounterId: newOrder.encounterId,
+          patientId: newOrder.patientId,
+          scheduledTime: `${today}T${time}:00Z`,
+          status: 'NOT_GIVEN'
+        };
+        this.administrations.set(admId, adm);
+        createdAdministrations.push(adm);
+      });
+    }
+
+    // Log Audit Trail
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName,
+      actorRole: (actorRole as UserRole) || 'PHYSICIAN',
+      action: "CPOE_ORDER_TRANSMITTED",
+      resourceType: "CPOEOrder",
+      resourceId: orderId,
+      patientId: newOrder.patientId,
+      timestamp: new Date().toISOString(),
+      previousValue: undefined,
+      newValue: JSON.stringify({
+        title: newOrder.title,
+        orderType: newOrder.orderType,
+        priority: newOrder.priority,
+        status: newOrder.status,
+        cdsAlertsCount: newOrder.cdsAlertsDismissed?.length || 0
+      }),
+      source: "CPOE_Order_Entry",
+    });
+
+    return { order: newOrder, createdAdministrations };
+  }
+
+  public atomicVerifyOrder(
+    facilityId: string,
+    orderId: string,
+    actorId: string,
+    actorName: string,
+    actorRole: string
+  ): CPOEOrder {
+    const order = this.orders.get(orderId);
+    if (!order) throw new Error(`Order ${orderId} not found`);
+    if (order.facilityId !== facilityId) {
+      throw new TenantAccessDeniedError(facilityId, "CPOEOrder", orderId);
+    }
+
+    const previousStatus = order.status;
+    order.status = 'PHARMACY_VERIFIED';
+    order.verifiedAt = new Date().toISOString();
+    order.verifiedBy = actorId;
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName,
+      actorRole: (actorRole as UserRole) || 'PHARMACIST',
+      action: "PHARMACY_ORDER_VERIFIED",
+      resourceType: "CPOEOrder",
+      resourceId: orderId,
+      patientId: order.patientId,
+      timestamp: new Date().toISOString(),
+      previousValue: previousStatus,
+      newValue: 'PHARMACY_VERIFIED',
+      source: "Central_Pharmacy_Queue",
+    });
+
+    return order;
+  }
+
+  public atomicDispenseOrder(
+    facilityId: string,
+    orderId: string,
+    actorId: string,
+    actorName: string,
+    actorRole: string
+  ): CPOEOrder {
+    const order = this.orders.get(orderId);
+    if (!order) throw new Error(`Order ${orderId} not found`);
+    if (order.facilityId !== facilityId) {
+      throw new TenantAccessDeniedError(facilityId, "CPOEOrder", orderId);
+    }
+
+    const previousStatus = order.status;
+    order.status = 'DISPENSED';
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName,
+      actorRole: (actorRole as UserRole) || 'PHARMACIST',
+      action: "PHARMACY_ORDER_DISPENSED",
+      resourceType: "CPOEOrder",
+      resourceId: orderId,
+      patientId: order.patientId,
+      timestamp: new Date().toISOString(),
+      previousValue: previousStatus,
+      newValue: 'DISPENSED',
+      source: "Automated_Pyxis_Dispense",
+    });
+
+    return order;
+  }
+
   public atomicAdministerMedication(
     facilityId: string,
     administrationId: string,
     status: 'GIVEN' | 'NOT_GIVEN' | 'REFUSED' | 'HELD',
-    actorId: string
+    actorId: string,
+    actorName?: string,
+    extra?: {
+      doseGiven?: string;
+      routeGiven?: string;
+      heldReason?: string;
+      injectionSite?: string;
+      cosignedBy?: string;
+    }
   ): MedicationAdministration {
     const adm = this.administrations.get(administrationId);
     if (!adm) throw new Error(`Medication administration ${administrationId} not found`);
@@ -858,15 +1009,20 @@ export class TenantRepository {
 
     const previousStatus = adm.status;
     adm.status = status;
-    adm.administeredTime = new Date().toISOString();
+    adm.administeredTime = status === 'GIVEN' ? new Date().toISOString() : undefined;
     adm.administeredBy = actorId;
+    if (extra?.doseGiven) adm.doseGiven = extra.doseGiven;
+    if (extra?.routeGiven) adm.routeGiven = extra.routeGiven;
+    if (extra?.heldReason) adm.heldReason = extra.heldReason;
+    if (extra?.injectionSite) adm.injectionSite = extra.injectionSite;
+    if (extra?.cosignedBy) adm.cosignedBy = extra.cosignedBy;
 
     // Log Audit
     this.logAudit({
       id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
       facilityId,
       actorId,
-      actorName: actorId,
+      actorName: actorName || actorId,
       actorRole: "NURSE",
       action: "MEDICATION_ADMINISTERED",
       resourceType: "MedicationAdministration",
