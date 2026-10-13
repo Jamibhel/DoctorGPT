@@ -1038,23 +1038,26 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
 
               {/* SUB-TAB 2: DIAGNOSTIC LABS TABLE */}
               {chartSubTab === 'labs' && (
-                <div className="bg-white rounded-[6px] border border-[#D7DEE7] overflow-hidden space-y-3">
-                  <div className="p-3 border-b border-[#E7ECF3] flex items-center justify-between bg-[#F8FAFC]">
-                    <div className="flex items-center space-x-3">
+                <div className="bg-white rounded-bji border border-[#D7DEE7] overflow-hidden space-y-3">
+                  <div className="p-3 border-b border-[#E7ECF3] flex flex-wrap items-center justify-between gap-2 bg-[#F8FAFC]">
+                    <div className="flex items-center space-x-2.5">
                       <Microscope className="w-4 h-4 text-emerald-600" />
                       <h3 className="font-bold text-xs uppercase tracking-wider text-slate-900">
-                        Diagnostic Laboratory Biomarkers &amp; Chemistry
+                        Diagnostic Laboratory Biomarkers &amp; Chemistry Flowsheet
                       </h3>
+                      <Badge variant="neutral" size="sm">{patientLabs.length} Panels</Badge>
                     </div>
 
                     {/* Filter by Category */}
-                    <div className="flex items-center space-x-1.5 text-xs">
+                    <div className="flex items-center space-x-1 text-xs">
                       {['ALL', 'HEMATOLOGY', 'CHEMISTRY', 'CARDIAC', 'ENDOCRINE'].map(c => (
                         <button
                           key={c}
                           onClick={() => setLabFilter(c)}
-                          className={`px-2 py-0.5 rounded font-mono transition text-[11px] ${
-                            labFilter === c ? 'bg-blue-600 text-white font-bold' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                          className={`px-2 py-0.5 rounded-bji font-mono transition text-[10px] font-bold ${
+                            labFilter === c 
+                              ? 'bg-slate-900 text-white shadow-2xs' 
+                              : 'bg-white border border-[#D7DEE7] text-slate-600 hover:bg-slate-50'
                           }`}
                         >
                           {c}
@@ -1067,25 +1070,36 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
                     <table className="w-full text-xs text-left">
                       <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
                         <tr>
-                          <th className="py-2.5 px-3">Test Name</th>
-                          <th className="py-2.5 px-3">Category</th>
-                          <th className="py-2.5 px-3">Result Value</th>
-                          <th className="py-2.5 px-3">Reference Range</th>
-                          <th className="py-2.5 px-3">Status Flag</th>
-                          <th className="py-2.5 px-3">Collection Time</th>
+                          <th className="py-2.5 px-3">Test Assay / Biomarker</th>
+                          <th className="py-2.5 px-3">Panel Category</th>
+                          <th className="py-2.5 px-3">Observed Value</th>
+                          <th className="py-2.5 px-3">Standard Reference Interval</th>
+                          <th className="py-2.5 px-3">Acuity Flag</th>
+                          <th className="py-2.5 px-3">Collection &amp; Result Time</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {patientLabs
                           .filter(l => labFilter === 'ALL' || l.category === labFilter)
                           .map(lab => (
-                            <tr key={lab.id} className="hover:bg-slate-50">
-                              <td className="py-2.5 px-3 font-bold text-slate-900">{lab.testName}</td>
-                              <td className="py-2.5 px-3 font-mono text-slate-500 text-[11px]">{lab.category}</td>
-                              <td className="py-2.5 px-3 font-bold text-slate-800 font-mono">
-                                {lab.value} <span className="font-normal text-slate-500">{lab.unit}</span>
+                            <tr key={lab.id} className="hover:bg-slate-50 transition">
+                              <td className="py-2.5 px-3 font-bold text-slate-900">
+                                <div>{lab.testName}</div>
+                                <span className="text-[10px] font-mono text-slate-400 font-normal">{lab.performingLab}</span>
                               </td>
-                              <td className="py-2.5 px-3 font-mono text-slate-500">{lab.referenceRange}</td>
+                              <td className="py-2.5 px-3 font-mono text-slate-500 text-[11px]">{lab.category}</td>
+                              <td className="py-2.5 px-3 font-bold text-slate-900 font-mono text-xs">
+                                <span className={
+                                  lab.flag === 'HIGH' || lab.flag === 'CRITICAL_HIGH' ? 'text-red-700' :
+                                  lab.flag === 'LOW' || lab.flag === 'CRITICAL_LOW' ? 'text-amber-700' : 'text-emerald-700'
+                                }>
+                                  {lab.value}
+                                </span>
+                                <span className="font-normal text-slate-500 text-[11px] ml-1">{lab.unit}</span>
+                              </td>
+                              <td className="py-2.5 px-3 font-mono text-slate-600 text-[11px]">
+                                {lab.referenceRange}
+                              </td>
                               <td className="py-2.5 px-3">
                                 <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
                                   lab.flag === 'HIGH' || lab.flag === 'CRITICAL_HIGH'
@@ -1097,8 +1111,9 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
                                   {lab.flag}
                                 </span>
                               </td>
-                              <td className="py-2.5 px-3 font-mono text-slate-400 text-[11px]">
-                                {new Date(lab.collectedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                              <td className="py-2.5 px-3 font-mono text-slate-500 text-[11px]">
+                                <div>Collected: {new Date(lab.collectedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
+                                <span className="text-[10px] text-slate-400">Resulted: {new Date(lab.resultedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
                               </td>
                             </tr>
                           ))}
@@ -1728,23 +1743,75 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
           )}
 
           {activeView === 'imaging' && (
-            <div className="space-y-5">
-              <div className="bg-white p-3.5 rounded-[6px] border border-[#D7DEE7]">
-                <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">Imaging Workspace</h2>
-                <p className="text-[11px] text-slate-500">Radiology worklist, study review, and AI overlays marked as simulated</p>
-              </div>
-              <div className="bg-white rounded-[6px] border border-[#D7DEE7] p-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {patientImaging.length === 0 ? (
-                    <div className="text-slate-500 text-sm">No imaging studies for the active patient.</div>
-                  ) : patientImaging.map(study => (
-                    <div key={study.id} className="border border-slate-200 rounded p-3 bg-slate-50">
-                      <div className="font-bold text-slate-900">{study.studyType}</div>
-                      <div className="text-[11px] text-slate-500 font-mono">{study.modality} • {study.status}</div>
-                      <div className="mt-2 text-[11px] text-slate-700">{study.impression}</div>
-                    </div>
-                  ))}
+            <div className="space-y-4">
+              <div className="bg-white p-3.5 rounded-bji border border-[#D7DEE7] flex items-center justify-between">
+                <div>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">
+                    Diagnostic PACS Radiology Worklist &amp; Studies
+                  </h2>
+                  <p className="text-[11px] text-slate-500">
+                    Patient: <strong className="text-slate-800">{activePatient.lastName}, {activePatient.firstName}</strong> (MRN: {activePatient.mrn}) • Full DICOM Viewer with AI CAD Lesion Detection
+                  </p>
                 </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 font-bold">
+                    PACS Worklist: {patientImaging.length} Studies
+                  </span>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {patientImaging.length === 0 ? (
+                  <div className="col-span-2 p-12 bg-white rounded-bji border border-[#D7DEE7] text-center text-slate-500 text-xs">
+                    No diagnostic radiology studies found for this patient.
+                  </div>
+                ) : (
+                  patientImaging.map(study => (
+                    <div
+                      key={study.id}
+                      onClick={() => setSelectedStudyForPacs(study)}
+                      className="bg-white rounded-bji border border-[#D7DEE7] p-3.5 hover:border-blue-400 hover:shadow-xs transition cursor-pointer flex gap-3 group"
+                    >
+                      <div className="w-24 h-24 bg-black rounded overflow-hidden shrink-0 border border-slate-300 relative">
+                        <img
+                          src={study.imageThumbnailUrl}
+                          alt={study.studyType}
+                          className="w-full h-full object-cover group-hover:scale-105 transition"
+                        />
+                        <span className="absolute bottom-1 right-1 text-[9px] font-mono font-bold px-1 rounded bg-black/70 text-white">
+                          {study.modality}
+                        </span>
+                      </div>
+
+                      <div className="flex-1 min-w-0 text-xs flex flex-col justify-between">
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <span className="font-bold text-slate-900 truncate">{study.studyType}</span>
+                            {study.isCriticalAlert && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-red-100 text-red-800 border border-red-200">
+                                STAT
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-[10px] font-mono text-slate-400 mt-0.5">
+                            Acquired: {new Date(study.studyDate).toLocaleDateString()} • {study.bodySite}
+                          </div>
+                          <p className="text-slate-600 text-[11px] mt-1.5 line-clamp-2 leading-relaxed">
+                            {study.impression}
+                          </p>
+                        </div>
+
+                        <div className="pt-2 mt-2 border-t border-slate-100 flex items-center justify-between text-[10px] font-mono text-slate-400">
+                          <span>CAD Overlays: {study.aiBoundingBoxes?.length || 0}</span>
+                          <span className="text-blue-600 font-bold group-hover:underline flex items-center gap-0.5">
+                            <span>Open in PACS</span>
+                            <ChevronRight className="w-3 h-3" />
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}
