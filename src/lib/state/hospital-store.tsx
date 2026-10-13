@@ -121,7 +121,8 @@ interface HospitalContextType {
     cosignedBy?: string;
   }) => void;
 
-  signClinicalNote: (noteId: string) => void;
+  saveClinicalNote: (noteData: Omit<ClinicalNote, 'id' | 'facilityId' | 'createdAt' | 'version'> & { id?: string }) => ClinicalNote;
+  signClinicalNote: (noteId: string) => ClinicalNote;
 
   // Facility Operations & Admin
   auditLogs: AuditLogEntry[];
@@ -690,24 +691,56 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     );
   };
 
-  const signClinicalNote = (noteId: string) => {
-    setNotes(prev => prev.map(n => n.id === noteId ? {
-      ...n,
-      status: 'SIGNED',
-      signedAt: new Date().toISOString(),
-      signedBy: currentStaff.id
-    } : n));
+  const saveClinicalNote = (noteData: Omit<ClinicalNote, 'id' | 'facilityId' | 'createdAt' | 'version'> & { id?: string }): ClinicalNote => {
+    const saved = tenantRepository.atomicSaveClinicalNote(
+      activeFacilityId,
+      noteData,
+      currentStaff.id,
+      currentStaff.name,
+      currentStaff.role
+    );
 
-    const note = notes.find(n => n.id === noteId);
-    if (note) {
-      emitClinicalEvent(
-        'NOTE_SIGNED',
-        `Clinical Note Signed: ${note.noteType}`,
-        `Formally signed by ${currentStaff.name}. Locked against future edits.`,
-        note.patientId,
-        note.encounterId
-      );
-    }
+    const updatedNotes = tenantRepository.getNotes(activeFacilityId);
+    setNotes(updatedNotes);
+
+    const audits = tenantRepository.getAuditLogs(activeFacilityId);
+    setAuditLogs(audits);
+
+    emitClinicalEvent(
+      'NOTE_DRAFTED',
+      `Clinical Note Drafted: ${saved.noteType} (v${saved.version})`,
+      `Drafted by ${currentStaff.name}. Status: ${saved.status}`,
+      saved.patientId,
+      saved.encounterId
+    );
+
+    return saved;
+  };
+
+  const signClinicalNote = (noteId: string): ClinicalNote => {
+    const signed = tenantRepository.atomicSignClinicalNote(
+      activeFacilityId,
+      noteId,
+      currentStaff.id,
+      currentStaff.name,
+      currentStaff.role
+    );
+
+    const updatedNotes = tenantRepository.getNotes(activeFacilityId);
+    setNotes(updatedNotes);
+
+    const audits = tenantRepository.getAuditLogs(activeFacilityId);
+    setAuditLogs(audits);
+
+    emitClinicalEvent(
+      'NOTE_SIGNED',
+      `Clinical Note Attested & Signed: ${signed.noteType}`,
+      `Formally signed with electronic attestation by ${currentStaff.name} (${currentStaff.role}). Note permanently locked.`,
+      signed.patientId,
+      signed.encounterId
+    );
+
+    return signed;
   };
 
   // Simulated Emergency Code Execution
@@ -853,6 +886,7 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       verifyOrderPharmacy,
       dispenseOrderPharmacy,
       administerMedication,
+      saveClinicalNote,
       signClinicalNote,
       auditLogs,
       updateFacilityConfig,

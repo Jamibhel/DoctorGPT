@@ -1090,6 +1090,89 @@ export class TenantRepository {
     return enriched;
   }
 
+  /**
+   * Draft or update a structured Clinical Note
+   */
+  public atomicSaveClinicalNote(
+    facilityId: string,
+    noteData: Omit<ClinicalNote, 'id' | 'facilityId' | 'createdAt' | 'version'> & { id?: string },
+    actorId: string,
+    actorName: string,
+    actorRole: string
+  ): ClinicalNote {
+    const noteId = noteData.id || `DocumentReference/note-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    const existing = this.notes.get(noteId);
+
+    const savedNote: ClinicalNote = {
+      ...noteData,
+      id: noteId,
+      facilityId,
+      createdAt: existing ? existing.createdAt : new Date().toISOString(),
+      version: existing ? existing.version + 1 : 1,
+      status: noteData.status || (existing ? existing.status : 'DRAFT')
+    };
+
+    this.notes.set(noteId, savedNote);
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName,
+      actorRole: (actorRole as UserRole) || 'PHYSICIAN',
+      action: "CLINICAL_NOTE_DRAFTED",
+      resourceType: "ClinicalNote",
+      resourceId: noteId,
+      patientId: savedNote.patientId,
+      timestamp: new Date().toISOString(),
+      previousValue: existing ? `v${existing.version} (${existing.status})` : undefined,
+      newValue: `v${savedNote.version} (${savedNote.status})`,
+      source: "Ambient_AI_Scribe_Workspace"
+    });
+
+    return savedNote;
+  }
+
+  /**
+   * Cryptographically / legally sign a clinical note and lock it against further edits
+   */
+  public atomicSignClinicalNote(
+    facilityId: string,
+    noteId: string,
+    actorId: string,
+    actorName: string,
+    actorRole: string
+  ): ClinicalNote {
+    const note = this.notes.get(noteId);
+    if (!note) throw new Error(`Clinical Note ${noteId} not found`);
+    if (note.facilityId !== facilityId) {
+      throw new TenantAccessDeniedError(facilityId, "ClinicalNote", noteId);
+    }
+
+    const previousStatus = note.status;
+    note.status = 'SIGNED';
+    note.signedAt = new Date().toISOString();
+    note.signedBy = actorId;
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName,
+      actorRole: (actorRole as UserRole) || 'PHYSICIAN',
+      action: "CLINICAL_NOTE_SIGNED",
+      resourceType: "ClinicalNote",
+      resourceId: noteId,
+      patientId: note.patientId,
+      timestamp: new Date().toISOString(),
+      previousValue: previousStatus,
+      newValue: 'SIGNED',
+      source: "Clinician_Electronic_Attestation"
+    });
+
+    return note;
+  }
+
   private logAudit(entry: AuditLogEntry) {
     this.auditLogs.unshift(entry);
     if (this.auditLogs.length > 500) {

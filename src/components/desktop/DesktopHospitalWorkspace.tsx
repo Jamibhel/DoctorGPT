@@ -50,6 +50,7 @@ import { aiOrchestrator } from "@/lib/ai/orchestrator";
 import { FacilityOperationsWorkspace } from "../facility";
 import { PatientRegistryWorkspace } from "../patients";
 import { VitalsFlowsheet, VitalsEntryModal } from "../vitals";
+import { AmbientScribeWorkspace } from "../scribe";
 
 export interface DesktopHospitalWorkspaceProps {
   externalView?: string;
@@ -1752,116 +1753,7 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
           {/* VIEW: AMBIENT AI CLINICAL SCRIBE                     */}
           {/* ==================================================== */}
           {activeView === 'scribe' && (
-            <div className="space-y-5">
-              <div className="bg-white p-4 rounded-[6px] border border-[#D7DEE7] flex items-center justify-between">
-                <div>
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                    <Sparkles className="w-4 h-4 text-emerald-600" />
-                    <span>Ambient AI Clinical Scribe &amp; SOAP Synthesis</span>
-                  </h2>
-                  <p className="text-[11px] text-slate-500">Live consultation transcript processing with grounded citations</p>
-                </div>
-
-                <div className="flex items-center space-x-2">
-                  <select
-                    value={selectedPreset.id}
-                    onChange={(e) => {
-                      const found = SAMPLE_CONSULTATIONS.find(c => c.id === e.target.value);
-                      if (found) setSelectedPreset(found);
-                    }}
-                    className="bg-slate-50 border border-slate-200 text-xs rounded px-2.5 py-1.5 font-medium outline-none"
-                  >
-                    {SAMPLE_CONSULTATIONS.map(p => (
-                      <option key={p.id} value={p.id}>{p.title}</option>
-                    ))}
-                  </select>
-
-                  <button
-                    onClick={handleRunAmbientScribe}
-                    disabled={isTranscribing}
-                    className="px-4 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded shadow-xs flex items-center gap-1.5 disabled:opacity-50"
-                  >
-                    <Sparkles className="w-3.5 h-3.5" />
-                    <span>{isTranscribing ? "Synthesizing..." : "Process Dialogue"}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Split Pane: Transcript vs Grounded SOAP Note */}
-              <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-                
-                {/* Left: Dialogue Transcript */}
-                <div className="lg:col-span-5 bg-white rounded-[6px] border border-[#D7DEE7] p-4 h-[520px] flex flex-col">
-                  <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
-                    <span className="font-bold text-xs text-slate-900">Audio Dialogue Transcript</span>
-                    <span className="text-[11px] text-slate-400 font-mono">{selectedPreset.dialogue.length} turns</span>
-                  </div>
-
-                  <div className="flex-1 overflow-y-auto space-y-2 pr-1 text-xs">
-                    {selectedPreset.dialogue.map((t, idx) => (
-                      <div key={idx} className={`p-2.5 rounded border ${
-                        t.speaker === 'Clinician' ? 'bg-blue-50/70 border-blue-100' : 'bg-slate-50 border-slate-200'
-                      }`}>
-                        <div className="flex items-center justify-between mb-0.5">
-                          <span className="font-bold text-[10px] uppercase text-slate-700">{t.speaker}</span>
-                          <span className="text-[10px] text-slate-400 font-mono">{t.timestamp}</span>
-                        </div>
-                        <p className="text-slate-800 leading-relaxed">{t.text}</p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                {/* Right: Synthesized SOAP Note with Commit */}
-                <div className="lg:col-span-7 bg-white rounded-[6px] border border-[#D7DEE7] p-4 h-[520px] flex flex-col justify-between">
-                  <div>
-                    <div className="flex items-center justify-between border-b border-slate-100 pb-2 mb-3">
-                      <span className="font-bold text-xs text-slate-900">Synthesized Structured Note</span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        Evidence Grounded
-                      </span>
-                    </div>
-
-                    <div className="space-y-2.5 overflow-y-auto max-h-[380px] pr-1 text-xs">
-                      <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-                        <strong className="text-blue-700 block mb-0.5">S — Subjective</strong>
-                        <p className="text-slate-700 leading-relaxed whitespace-pre-line">
-                          {draftedSoap.subjective || "Click 'Process Dialogue' above to extract subjective history."}
-                        </p>
-                      </div>
-                      <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-                        <strong className="text-blue-700 block mb-0.5">O — Objective</strong>
-                        <p className="text-slate-700 leading-relaxed whitespace-pre-line">
-                          {draftedSoap.objective || "Objective vitals and exam details will appear here."}
-                        </p>
-                      </div>
-                      <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-                        <strong className="text-emerald-700 block mb-0.5">A — Assessment</strong>
-                        <p className="text-slate-700 leading-relaxed whitespace-pre-line">
-                          {draftedSoap.assessment || "Clinical assessment will populate automatically."}
-                        </p>
-                      </div>
-                      <div className="p-2.5 bg-slate-50 rounded border border-slate-200">
-                        <strong className="text-emerald-700 block mb-0.5">P — Plan</strong>
-                        <p className="text-slate-700 leading-relaxed whitespace-pre-line">
-                          {draftedSoap.plan || "Diagnostic testing and therapy orders."}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-3 border-t border-slate-100 flex justify-end">
-                    <button
-                      onClick={handleSignSoapNote}
-                      disabled={!draftedSoap.subjective}
-                      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold rounded shadow-xs disabled:opacity-50"
-                    >
-                      Formally Sign &amp; Commit to Patient EHR
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <AmbientScribeWorkspace />
           )}
 
           {/* ==================================================== */}
