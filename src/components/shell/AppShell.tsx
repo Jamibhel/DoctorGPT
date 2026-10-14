@@ -12,6 +12,7 @@ import {
   LoadingSpinner 
 } from "@/components/ui";
 import { UnifiedAuthModal } from "@/components/auth";
+import { KeyboardShortcutsModal } from "./KeyboardShortcutsModal";
 import { 
   Activity, 
   AlertTriangle, 
@@ -23,6 +24,7 @@ import {
   Download, 
   FileText, 
   Heart, 
+  Keyboard,
   LayoutDashboard, 
   Lock, 
   LogOut, 
@@ -93,6 +95,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isPatientSearchOpen, setIsPatientSearchOpen] = useState(false);
+  const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
@@ -103,6 +106,46 @@ export const AppShell: React.FC<AppShellProps> = ({
     window.addEventListener("resize", handleResize);
     return () => window.removeEventListener("resize", handleResize);
   }, []);
+
+  // Global Keyboard Shortcuts
+  useEffect(() => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement;
+      const isInput = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable);
+
+      // Ctrl+K / Cmd+K -> Omni search
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault();
+        setIsPatientSearchOpen(prev => !prev);
+        return;
+      }
+
+      // ? or Shift+/ -> Keyboard shortcuts cheat sheet
+      if (!isInput && e.key === '?' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        setIsShortcutsOpen(true);
+        return;
+      }
+
+      // Alt + Number -> Direct Workspace switching
+      if (e.altKey && !e.ctrlKey && !e.metaKey) {
+        if (e.key === '1') { e.preventDefault(); onSelectView('command'); }
+        else if (e.key === '2') { e.preventDefault(); onSelectView('chart'); }
+        else if (e.key === '3') { e.preventDefault(); onSelectView('registry'); }
+        else if (e.key === '4') { e.preventDefault(); onSelectView('cpoe'); }
+        else if (e.key === '5') { e.preventDefault(); onSelectView('beds'); }
+        else if (e.key === '6') { e.preventDefault(); onSelectView('emergency'); }
+        else if (e.key === '7') { e.preventDefault(); onSelectView('ot'); }
+        else if (e.key === '8') { e.preventDefault(); onSelectView('imaging'); }
+        else if (e.key === '9') { e.preventDefault(); onSelectView('fhir'); }
+        else if (e.key === '0') { e.preventDefault(); onSelectView('facility_admin'); }
+        else if (e.key.toLowerCase() === 'l') { e.preventDefault(); lockSession(); }
+      }
+    };
+
+    window.addEventListener('keydown', handleGlobalKeyDown);
+    return () => window.removeEventListener('keydown', handleGlobalKeyDown);
+  }, [onSelectView, lockSession]);
 
   // Compute effective device layout
   const effectiveDevice: "DESKTOP" | "TABLET" | "PHONE" = 
@@ -181,6 +224,21 @@ export const AppShell: React.FC<AppShellProps> = ({
               </Button>
             )}
           </div>
+        </div>
+      )}
+
+      {/* OFFLINE CLINICAL SHELL BANNER */}
+      {!isOnline && (
+        <div className="bg-amber-600 text-white px-4 py-1.5 flex items-center justify-between text-xs font-semibold shadow-xs select-none">
+          <div className="flex items-center gap-2">
+            <WifiOff className="w-4 h-4 text-white shrink-0" />
+            <span>
+              Offline Clinical Shell Active — Cached records accessible. Mutations will sync via IndexedDB when connection is restored.
+            </span>
+          </div>
+          <span className="text-[10px] font-mono bg-amber-700 px-2 py-0.5 rounded font-bold">
+            PWA Standalone Offline
+          </span>
         </div>
       )}
 
@@ -374,6 +432,17 @@ export const AppShell: React.FC<AppShellProps> = ({
               Design Tokens
             </Button>
           )}
+
+          {/* Keyboard Shortcuts Dialog Button */}
+          <button
+            type="button"
+            onClick={() => setIsShortcutsOpen(true)}
+            className="hidden sm:flex items-center gap-1 px-2 py-1 rounded-bji text-meta text-bji-slate-600 hover:text-bji-slate-900 hover:bg-bji-slate-100 transition-colors border border-transparent hover:border-bji-slate-200"
+            title="Clinical Keyboard Shortcuts (?)"
+          >
+            <Keyboard className="w-3.5 h-3.5 text-bji-slate-500" />
+            <span className="font-mono text-[10px] bg-bji-slate-100 px-1 rounded border border-bji-slate-300">?</span>
+          </button>
 
           {/* Inactivity Timer Countdown & Lock */}
           <button
@@ -859,6 +928,12 @@ export const AppShell: React.FC<AppShellProps> = ({
       <UnifiedAuthModal 
         isOpen={isAuthModalOpen} 
         onClose={() => setIsAuthModalOpen(false)} 
+      />
+
+      {/* Clinical Keyboard Shortcuts Cheat Sheet */}
+      <KeyboardShortcutsModal
+        isOpen={isShortcutsOpen}
+        onClose={() => setIsShortcutsOpen(false)}
       />
     </div>
   );
