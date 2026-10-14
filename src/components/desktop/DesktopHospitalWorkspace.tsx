@@ -55,6 +55,7 @@ import { VitalsFlowsheet, VitalsEntryModal } from "../vitals";
 import { AmbientScribeWorkspace } from "../scribe";
 import { EmergencyWorkspace } from "../emergency";
 import { OperatingTheatreWorkspace } from "../surgery";
+import { BedMatrixWorkspace } from "../beds";
 
 export interface DesktopHospitalWorkspaceProps {
   externalView?: string;
@@ -1327,115 +1328,10 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
           )}
 
           {/* ==================================================== */}
-          {/* VIEW: WARDS & BED MATRIX (ADT)                       */}
+          {/* VIEW: WARDS & BED MATRIX (ADT & EVS SANITIZATION)    */}
           {/* ==================================================== */}
           {activeView === 'beds' && (
-            <div className="space-y-5">
-              <div className="flex items-center justify-between bg-white p-3.5 rounded-lg border border-slate-200 shadow-xs">
-                <div>
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900">
-                    Hospital Bed Matrix &amp; ADT State Machine
-                  </h2>
-                  <p className="text-[11px] text-slate-500">Live floor-plan occupancy matrix</p>
-                </div>
-
-                <button
-                  onClick={() => {
-                    setAdtInitialMode('ADMISSION');
-                    setIsAdtModalOpen(true);
-                  }}
-                  className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded shadow-xs"
-                >
-                  + Admit Inpatient
-                </button>
-              </div>
-
-              {/* Department Wards */}
-              {departments
-                .filter(d => selectedWardFilter === 'ALL' || d.id === selectedWardFilter)
-                .map(dept => {
-                  const deptBeds = beds.filter(b => b.wardId === dept.id);
-                  return (
-                    <div key={dept.id} className="bg-white rounded-[6px] border border-[#D7DEE7] p-4 space-y-3">
-                      <div className="flex items-center justify-between border-b border-slate-100 pb-2">
-                        <div className="flex items-center space-x-2">
-                          <span className="w-6 h-6 rounded bg-blue-100 text-blue-800 flex items-center justify-center font-bold text-xs font-mono">
-                            {dept.floor}F
-                          </span>
-                          <h3 className="font-bold text-xs text-slate-900">{dept.name}</h3>
-                        </div>
-                        <span className="text-xs text-slate-500 font-mono">
-                          {deptBeds.filter(b => b.status === 'OCCUPIED').length} / {deptBeds.length} Occupied
-                        </span>
-                      </div>
-
-                      {/* Beds Array */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2.5">
-                        {deptBeds.map(bed => {
-                          const occupant = patients.find(p => p.id === bed.currentPatientId);
-                          const isOccupied = bed.status === 'OCCUPIED';
-                          const isCleaning = bed.status === 'CLEANING';
-                          const isAvailable = bed.status === 'AVAILABLE';
-
-                          return (
-                            <div
-                              key={bed.id}
-                              className={`p-2.5 rounded border flex flex-col justify-between text-xs transition ${
-                                isOccupied
-                                  ? 'bg-blue-50/70 border-blue-200'
-                                  : isCleaning
-                                  ? 'bg-amber-50/70 border-amber-200'
-                                  : 'bg-emerald-50/50 border-emerald-200'
-                              }`}
-                            >
-                              <div>
-                                <div className="flex items-center justify-between mb-1">
-                                  <span className="font-bold font-mono text-slate-900">{bed.bedNumber}</span>
-                                  <span className={`text-[9px] font-bold px-1 py-0.2 rounded font-mono ${
-                                    isOccupied ? 'bg-blue-200 text-blue-900' : isCleaning ? 'bg-amber-200 text-amber-900' : 'bg-emerald-200 text-emerald-900'
-                                  }`}>
-                                    {bed.status}
-                                  </span>
-                                </div>
-
-                                {isOccupied && occupant && (
-                                  <div
-                                    onClick={() => {
-                                      setActivePatientId(occupant.id);
-                                      setActiveView('chart');
-                                    }}
-                                    className="cursor-pointer hover:underline"
-                                  >
-                                    <p className="font-bold text-slate-900 truncate">{occupant.lastName}, {occupant.firstName}</p>
-                                    <p className="text-[10px] font-mono text-slate-500">MRN: {occupant.mrn}</p>
-                                  </div>
-                                )}
-
-                                {isCleaning && (
-                                  <button
-                                    onClick={() => completeBedCleaning(bed.id)}
-                                    className="w-full mt-1 py-0.5 text-[10px] bg-amber-600 hover:bg-amber-700 text-white font-bold rounded"
-                                  >
-                                    Mark Clean
-                                  </button>
-                                )}
-
-                                {isAvailable && (
-                                  <p className="text-[10px] text-emerald-700 font-medium">Ready for admission</p>
-                                )}
-                              </div>
-
-                              <div className="pt-1.5 mt-1.5 border-t border-slate-200 text-[9px] font-mono text-slate-400">
-                                {bed.isIcuEquipped ? "ICU Capable" : "Standard"}
-                              </div>
-                            </div>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
+            <BedMatrixWorkspace />
           )}
 
           {/* ==================================================== */}

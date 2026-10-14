@@ -27,7 +27,8 @@ import {
   SurgicalCase,
   WhoChecklist,
   IntraoperativeRecord,
-  SurgicalCaseStatus
+  SurgicalCaseStatus,
+  EvsSanitizationChecklist
 } from "@/types/hospital";
 
 import { 
@@ -1116,6 +1117,203 @@ export class TenantRepository {
     });
 
     return newBed;
+  }
+
+  public atomicUpdateBed(
+    facilityId: string,
+    bedId: string,
+    updates: Partial<HospitalBed>,
+    actorId: string,
+    actorName: string,
+    actorRole: string
+  ): HospitalBed {
+    const existing = this.beds.get(bedId);
+    if (!existing) throw new Error(`Bed ${bedId} not found`);
+    if (existing.facilityId !== facilityId) {
+      throw new TenantAccessDeniedError(facilityId, "HospitalBed", bedId);
+    }
+
+    const updated: HospitalBed = {
+      ...existing,
+      ...updates
+    };
+    this.beds.set(bedId, updated);
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName,
+      actorRole: (actorRole as UserRole) || 'CLINICAL_STAFF',
+      action: "BED_STATUS_UPDATED",
+      resourceType: "HospitalBed",
+      resourceId: bedId,
+      timestamp: new Date().toISOString(),
+      previousValue: existing.status,
+      newValue: updated.status,
+      source: "Bed_Matrix_Console"
+    });
+
+    return updated;
+  }
+
+  public atomicCompleteEvsCleaning(
+    facilityId: string,
+    bedId: string,
+    checklist: EvsSanitizationChecklist,
+    actorId: string,
+    actorName: string,
+    actorRole: string
+  ): HospitalBed {
+    const existing = this.beds.get(bedId);
+    if (!existing) throw new Error(`Bed ${bedId} not found`);
+    if (existing.facilityId !== facilityId) {
+      throw new TenantAccessDeniedError(facilityId, "HospitalBed", bedId);
+    }
+
+    const updated: HospitalBed = {
+      ...existing,
+      status: 'AVAILABLE',
+      cleaningStartedAt: undefined,
+      evsChecklist: {
+        ...checklist,
+        completedAt: new Date().toISOString(),
+        completedBy: actorName
+      }
+    };
+    this.beds.set(bedId, updated);
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName,
+      actorRole: (actorRole as UserRole) || 'CLINICAL_STAFF',
+      action: "EVS_TERMINAL_CLEANING_COMPLETED",
+      resourceType: "HospitalBed",
+      resourceId: bedId,
+      timestamp: new Date().toISOString(),
+      newValue: `Type: ${checklist.cleaningType} completed by ${actorName}`,
+      source: "EVS_Terminal_Console"
+    });
+
+    return updated;
+  }
+
+  public atomicAssignBed(
+    facilityId: string,
+    bedId: string,
+    encounterId: string,
+    patientId: string,
+    actorId: string,
+    actorName: string,
+    actorRole: string
+  ): HospitalBed {
+    const existing = this.beds.get(bedId);
+    if (!existing) throw new Error(`Bed ${bedId} not found`);
+    if (existing.facilityId !== facilityId) {
+      throw new TenantAccessDeniedError(facilityId, "HospitalBed", bedId);
+    }
+
+    const updated: HospitalBed = {
+      ...existing,
+      status: 'OCCUPIED',
+      currentEncounterId: encounterId,
+      currentPatientId: patientId,
+      cleaningStartedAt: undefined
+    };
+    this.beds.set(bedId, updated);
+
+    // Also update encounter
+    const enc = this.encounters.get(encounterId);
+    if (enc && enc.facilityId === facilityId) {
+      this.encounters.set(encounterId, {
+        ...enc,
+        activeBedId: bedId,
+        departmentId: existing.wardId,
+        status: 'ACTIVE'
+      });
+    }
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName,
+      actorRole: (actorRole as UserRole) || 'CLINICAL_STAFF',
+      action: "BED_ASSIGNED",
+      resourceType: "HospitalBed",
+      resourceId: bedId,
+      patientId,
+      timestamp: new Date().toISOString(),
+      newValue: `Assigned patient ${patientId} to ${existing.roomNumber}-${existing.bedNumber}`,
+      source: "ADT_Bed_Allocation"
+    });
+
+    return updated;
+  }
+
+  public atomicTransferBed(
+    facilityId: string,
+    fromBedId: string,
+    toBedId: string,
+    encounterId: string,
+    patientId: string,
+    reason: string,
+    actorId: string,
+    actorName: string,
+    actorRole: string
+  ): { fromBed: HospitalBed; toBed: HospitalBed } {
+    const fromBed = this.beds.get(fromBedId);
+    const toBed = this.beds.get(toBedId);
+    if (!fromBed) throw new Error(`Source bed ${fromBedId} not found`);
+    if (!toBed) throw new Error(`Destination bed ${toBedId} not found`);
+
+    const updatedFrom: HospitalBed = {
+      ...fromBed,
+      status: 'CLEANING',
+      currentEncounterId: undefined,
+      currentPatientId: undefined,
+      cleaningStartedAt: new Date().toISOString()
+    };
+
+    const updatedTo: HospitalBed = {
+      ...toBed,
+      status: 'OCCUPIED',
+      currentEncounterId: encounterId,
+      currentPatientId: patientId
+    };
+
+    this.beds.set(fromBedId, updatedFrom);
+    this.beds.set(toBedId, updatedTo);
+
+    // Update encounter
+    const enc = this.encounters.get(encounterId);
+    if (enc && enc.facilityId === facilityId) {
+      this.encounters.set(encounterId, {
+        ...enc,
+        activeBedId: toBedId,
+        departmentId: toBed.wardId
+      });
+    }
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName,
+      actorRole: (actorRole as UserRole) || 'CLINICAL_STAFF',
+      action: "PATIENT_BED_TRANSFERRED",
+      resourceType: "HospitalBed",
+      resourceId: toBedId,
+      patientId,
+      timestamp: new Date().toISOString(),
+      previousValue: fromBedId,
+      newValue: `${toBedId} (Reason: ${reason})`,
+      source: "ADT_Transfer_Console"
+    });
+
+    return { fromBed: updatedFrom, toBed: updatedTo };
   }
 
   // ==========================================

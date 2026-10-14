@@ -190,7 +190,23 @@ export interface Encounter {
   careTeamIds: string[];
 }
 
-export type BedStatus = 'OCCUPIED' | 'CLEANING' | 'AVAILABLE' | 'RESERVED' | 'MAINTENANCE';
+export type BedStatus = 'OCCUPIED' | 'CLEANING' | 'AVAILABLE' | 'RESERVED' | 'MAINTENANCE' | 'DISCHARGE_PENDING';
+export type IsolationPrecautionType = 'NONE' | 'CONTACT' | 'DROPLET' | 'AIRBORNE' | 'NEUTROPENIC';
+export type BedCapabilityType = 'STANDARD' | 'ICU' | 'TELEMETRY' | 'BARIATRIC' | 'NEGATIVE_PRESSURE' | 'PEDIATRIC';
+
+export interface EvsSanitizationChecklist {
+  linenStripped: boolean;
+  highTouchDisinfected: boolean;
+  uvcCycleCompleted: boolean;
+  hepaAcheChecked: boolean;
+  telemetryTested: boolean;
+  ppeRestocked: boolean;
+  cleaningType: 'STANDARD_TERMINAL' | 'ISOLATION_PATHOGEN_TERMINAL' | 'RAPID_TURNOVER';
+  attendantName?: string;
+  turnoverMinutesRemaining?: number;
+  completedAt?: string;
+  completedBy?: string;
+}
 
 export interface HospitalBed {
   id: string; // "Bed/304-B"
@@ -199,11 +215,16 @@ export interface HospitalBed {
   roomNumber: string;
   bedNumber: string;
   status: BedStatus;
+  bedType?: BedCapabilityType;
+  isolationPrecaution?: IsolationPrecautionType;
   currentEncounterId?: string;
   currentPatientId?: string;
   cleaningStartedAt?: string;
   isIcuEquipped: boolean;
   telemetryEnabled: boolean;
+  isBariatric?: boolean;
+  isNegativePressure?: boolean;
+  evsChecklist?: EvsSanitizationChecklist;
 }
 
 export interface BedAssignment {

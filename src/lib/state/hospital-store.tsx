@@ -28,7 +28,8 @@ import {
   EmergencyCodeType,
   SurgicalCase,
   WhoChecklist,
-  IntraoperativeRecord
+  IntraoperativeRecord,
+  EvsSanitizationChecklist
 } from "@/types/hospital";
 import { tenantRepository } from "../db/tenant-repository";
 import { calculateNEWS2 } from "../services/news2";
@@ -90,6 +91,9 @@ interface HospitalContextType {
     dischargeSummaryText?: string;
   }) => void;
   completeBedCleaning: (bedId: string) => void;
+  updateBedStatus: (bedId: string, updates: Partial<HospitalBed>) => void;
+  completeEvsCleaning: (bedId: string, checklist: EvsSanitizationChecklist) => void;
+  assignBed: (bedId: string, encounterId: string, patientId: string) => void;
 
   // Clinical Actions
   recordVitals: (params: {
@@ -467,6 +471,63 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       status: 'AVAILABLE',
       cleaningStartedAt: undefined
     } : b));
+  };
+
+  const updateBedStatus = (bedId: string, updates: Partial<HospitalBed>) => {
+    tenantRepository.atomicUpdateBed(
+      activeFacilityId,
+      bedId,
+      updates,
+      currentStaff.id,
+      currentStaff.name,
+      currentStaff.role
+    );
+    setBeds(tenantRepository.getBeds(activeFacilityId));
+    setAuditLogs(tenantRepository.getAuditLogs(activeFacilityId));
+  };
+
+  const completeEvsCleaning = (bedId: string, checklist: EvsSanitizationChecklist) => {
+    tenantRepository.atomicCompleteEvsCleaning(
+      activeFacilityId,
+      bedId,
+      checklist,
+      currentStaff.id,
+      currentStaff.name,
+      currentStaff.role
+    );
+    setBeds(tenantRepository.getBeds(activeFacilityId));
+    setAuditLogs(tenantRepository.getAuditLogs(activeFacilityId));
+    emitClinicalEvent(
+      'BED_CLEANING_COMPLETED',
+      `Bed ${bedId} Released to Available`,
+      `EVS terminal sanitization completed by ${checklist.attendantName || currentStaff.name}. Type: ${checklist.cleaningType}`,
+      undefined,
+      undefined,
+      bedId
+    );
+  };
+
+  const assignBed = (bedId: string, encounterId: string, patientId: string) => {
+    tenantRepository.atomicAssignBed(
+      activeFacilityId,
+      bedId,
+      encounterId,
+      patientId,
+      currentStaff.id,
+      currentStaff.name,
+      currentStaff.role
+    );
+    setBeds(tenantRepository.getBeds(activeFacilityId));
+    setEncounters(tenantRepository.getEncounters(activeFacilityId));
+    setAuditLogs(tenantRepository.getAuditLogs(activeFacilityId));
+    emitClinicalEvent(
+      'PATIENT_ADMITTED',
+      `Patient Assigned to Bed ${bedId}`,
+      `Admitted by ${currentStaff.name} to Bed ${bedId}`,
+      patientId,
+      encounterId,
+      bedId
+    );
   };
 
   // Clinical Observations & NEWS2
@@ -1078,6 +1139,9 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       transferPatient,
       dischargePatient,
       completeBedCleaning,
+      updateBedStatus,
+      completeEvsCleaning,
+      assignBed,
       recordVitals,
       registerPatient,
       updatePatientDemographics,
