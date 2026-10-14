@@ -45,6 +45,7 @@ import {
   WifiOff, 
   X,
   Ambulance,
+  Scissors,
   Zap 
 } from "lucide-react";
 
@@ -550,6 +551,13 @@ export const AppShell: React.FC<AppShellProps> = ({
                 collapsed={navCollapsed}
               />
               <NavRailItem
+                icon={<Scissors className="w-4 h-4 text-emerald-400" />}
+                label="Operating Theatre"
+                isActive={activeView === "ot" || activeView === "surgery"}
+                onClick={() => onSelectView("ot")}
+                collapsed={navCollapsed}
+              />
+              <NavRailItem
                 icon={<Monitor className="w-4 h-4" />}
                 label="PACS Imaging"
                 isActive={activeView === "imaging"}
@@ -764,6 +772,15 @@ export const AppShell: React.FC<AppShellProps> = ({
             isActive={activeView === "emergency" || activeView === "trauma"}
             onClick={() => {
               onSelectView("emergency");
+              setIsMobileMenuOpen(false);
+            }}
+          />
+          <NavRailItem
+            icon={<Scissors className="w-4 h-4 text-emerald-600" />}
+            label="Operating Theatre (OT)"
+            isActive={activeView === "ot" || activeView === "surgery"}
+            onClick={() => {
+              onSelectView("ot");
               setIsMobileMenuOpen(false);
             }}
           />

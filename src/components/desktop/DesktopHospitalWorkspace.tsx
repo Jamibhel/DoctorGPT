@@ -54,6 +54,7 @@ import { PatientRegistryWorkspace } from "../patients";
 import { VitalsFlowsheet, VitalsEntryModal } from "../vitals";
 import { AmbientScribeWorkspace } from "../scribe";
 import { EmergencyWorkspace } from "../emergency";
+import { OperatingTheatreWorkspace } from "../surgery";
 
 export interface DesktopHospitalWorkspaceProps {
   externalView?: string;
@@ -73,6 +74,7 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
     administrations,
     imaging,
     notes,
+    surgicalCases,
     activeEmergency,
     activePatientId,
     activeEncounterId,
@@ -174,48 +176,6 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
     notes.filter(n => n.patientId === activePatientId),
     [notes, activePatientId]
   );
-
-  const otSchedule = useMemo(() => [
-    {
-      id: 'OT-105',
-      room: 'OR-05',
-      patient: activePatient.lastName + ', ' + activePatient.firstName,
-      mrn: activePatient.mrn,
-      procedure: 'Laparoscopic Cholecystectomy',
-      surgeon: 'Dr. T. Alvarez',
-      anesthetist: 'Dr. M. Lee',
-      status: 'IN_PROGRESS',
-      time: '07:50',
-      specialty: 'General Surgery',
-      external: false
-    },
-    {
-      id: 'OT-118',
-      room: 'OR-02',
-      patient: 'Nolan, Harriet',
-      mrn: 'MRN-40891',
-      procedure: 'Total Knee Arthroplasty',
-      surgeon: 'Dr. D. Patel',
-      anesthetist: 'Dr. C. Ruiz',
-      status: 'PREP',
-      time: '08:25',
-      specialty: 'Orthopaedics',
-      external: false
-    },
-    {
-      id: 'OT-221',
-      room: 'Satellite Suite',
-      patient: 'Foster, Mila',
-      mrn: 'MRN-21964',
-      procedure: 'Endoscopic Sinus Procedure',
-      surgeon: 'Dr. J. Osei',
-      anesthetist: 'Dr. S. Green',
-      status: 'TRANSPORT',
-      time: '09:10',
-      specialty: 'ENT',
-      external: true
-    }
-  ], [activePatient]);
 
   // Filtered Patients according to Omni-Search
   const filteredPatients = useMemo(() => {
@@ -350,7 +310,7 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
                     <Stethoscope className="w-4 h-4 shrink-0" />
                     <span>OT / Theatre</span>
                   </div>
-                  <span className="text-[10px] font-mono">{otSchedule.length}</span>
+                  <span className="text-[10px] font-mono">{surgicalCases.length}</span>
                 </button>
 
                 <button
@@ -1846,146 +1806,10 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
           )}
 
           {/* ==================================================== */}
-          {/* VIEW: OPERATING THEATRE / EXTERNAL OT BOARD          */}
+          {/* VIEW: OPERATING THEATRE & PERIOPERATIVE SAFETY       */}
           {/* ==================================================== */}
           {activeView === 'ot' && (
-            <div className="space-y-5">
-              <div className="bg-white p-4 rounded-[6px] border border-[#D7DEE7] flex items-center justify-between">
-                <div>
-                  <h2 className="text-xs font-bold uppercase tracking-wider text-slate-900 flex items-center gap-1.5">
-                    <Stethoscope className="w-4 h-4 text-indigo-600" />
-                    <span>Operating Theatre &amp; External Procedure Board</span>
-                  </h2>
-                  <p className="text-[11px] text-slate-500">In-house OR schedule with satellite and external case coordination</p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-slate-500 font-mono bg-slate-100 border border-slate-200 rounded px-2 py-1">3 live rooms</span>
-                  <button
-                    onClick={() => setActiveView('operations')}
-                    className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs rounded shadow-xs"
-                  >
-                    View emergency ops
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                {[
-                  ['Scheduled', '07:00', 'Reconciliation'],
-                  ['In progress', '03', 'Live rooms'],
-                  ['Satellite', '01', 'External transfer'],
-                  ['Recovery', '14', 'PACU handoff']
-                ].map(([label, value, sub]) => (
-                  <div key={label} className="bg-white p-3.5 rounded-[6px] border border-[#D7DEE7]">
-                    <div className="text-[10px] uppercase tracking-[0.14em] text-slate-500 font-bold">{label}</div>
-                    <div className="mt-2 text-[22px] font-bold text-slate-900">{value}</div>
-                    <div className="text-[11px] text-slate-500">{sub}</div>
-                  </div>
-                ))}
-              </div>
-
-              <div className="grid grid-cols-1 xl:grid-cols-[1.2fr_0.8fr] gap-4">
-                <div className="bg-white rounded-[6px] border border-[#D7DEE7] p-4">
-                  <div className="flex items-center justify-between pb-2 border-b border-[#E7ECF3] mb-3">
-                    <h3 className="font-bold text-xs uppercase tracking-wider text-slate-900">External transfer network</h3>
-                    <span className="text-[10px] font-mono text-slate-500">Satellite / mobile cases</span>
-                  </div>
-
-                  <div className="space-y-2.5 text-xs">
-                    {[
-                      ['Ambulatory imaging unit', 'Patient transfer ready • 07:45', 'green'],
-                      ['Community cath lab', 'Transport team dispatched • 08:05', 'amber'],
-                      ['Outreach ENT clinic', 'Procedure suite confirmed • 09:10', 'blue']
-                    ].map(([title, detail, status]) => (
-                      <div key={title} className="flex items-center justify-between gap-3 rounded border border-slate-200 bg-slate-50 p-2.5">
-                        <div>
-                          <div className="font-bold text-slate-900">{title}</div>
-                          <div className="text-[11px] text-slate-500">{detail}</div>
-                        </div>
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
-                          status === 'green' ? 'bg-emerald-100 text-emerald-800' :
-                          status === 'amber' ? 'bg-amber-100 text-amber-800' : 'bg-blue-100 text-blue-800'
-                        }`}>
-                          {status === 'green' ? 'READY' : status === 'amber' ? 'IN TRANSIT' : 'CONFIRMED'}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
-                <div className="bg-white rounded-[6px] border border-[#D7DEE7] p-4">
-                  <div className="flex items-center justify-between pb-2 border-b border-[#E7ECF3] mb-3">
-                    <h3 className="font-bold text-xs uppercase tracking-wider text-slate-900">Transfer controls</h3>
-                    <Share2 className="w-4 h-4 text-indigo-600" />
-                  </div>
-
-                  <div className="space-y-3 text-xs">
-                    <button className="w-full text-left p-2.5 rounded border border-indigo-200 bg-indigo-50 text-indigo-800 font-semibold">
-                      Launch external theatre checklist
-                    </button>
-                    <button className="w-full text-left p-2.5 rounded border border-slate-200 bg-slate-50 text-slate-700 font-medium">
-                      Notify retrieval team and receiving unit
-                    </button>
-                    <button className="w-full text-left p-2.5 rounded border border-emerald-200 bg-emerald-50 text-emerald-800 font-semibold">
-                      Confirm patient handoff documentation
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-[6px] border border-[#D7DEE7] overflow-hidden">
-                <div className="px-4 py-3 border-b border-[#E7ECF3] bg-[#F8FAFC] flex items-center justify-between">
-                  <h3 className="text-[12px] uppercase tracking-[0.14em] font-bold text-[#475569]">Case docket</h3>
-                  <span className="text-[11px] text-slate-500 font-mono">OR 01-06 • External transfer network</span>
-                </div>
-
-                <div className="overflow-x-auto">
-                  <table className="w-full text-xs text-left">
-                    <thead className="bg-slate-100 text-slate-600 font-semibold border-b border-slate-200">
-                      <tr>
-                        <th className="py-2.5 px-3">Suite</th>
-                        <th className="py-2.5 px-3">Patient</th>
-                        <th className="py-2.5 px-3">Procedure</th>
-                        <th className="py-2.5 px-3">Surgeon</th>
-                        <th className="py-2.5 px-3">Anesthesia</th>
-                        <th className="py-2.5 px-3">Time</th>
-                        <th className="py-2.5 px-3">Status</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100">
-                      {otSchedule.map(caseItem => (
-                        <tr key={caseItem.id} className="hover:bg-slate-50">
-                          <td className="py-2.5 px-3 font-bold text-slate-900 font-mono">{caseItem.room}</td>
-                          <td className="py-2.5 px-3">
-                            <div className="font-bold text-slate-900">{caseItem.patient}</div>
-                            <div className="text-[10px] text-slate-500 font-mono">{caseItem.mrn}</div>
-                          </td>
-                          <td className="py-2.5 px-3">
-                            <div className="font-semibold text-slate-800">{caseItem.procedure}</div>
-                            <div className="text-[10px] text-slate-500">{caseItem.specialty}</div>
-                          </td>
-                          <td className="py-2.5 px-3 text-slate-700">{caseItem.surgeon}</td>
-                          <td className="py-2.5 px-3 text-slate-700">{caseItem.anesthetist}</td>
-                          <td className="py-2.5 px-3 font-mono text-slate-600">{caseItem.time}</td>
-                          <td className="py-2.5 px-3">
-                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold font-mono ${
-                              caseItem.status === 'IN_PROGRESS'
-                                ? 'bg-emerald-100 text-emerald-800'
-                                : caseItem.status === 'PREP'
-                                ? 'bg-amber-100 text-amber-800'
-                                : 'bg-indigo-100 text-indigo-800'
-                            }`}>
-                              {caseItem.external ? 'EXTERNAL' : caseItem.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            </div>
+            <OperatingTheatreWorkspace />
           )}
 
           {/* ==================================================== */}

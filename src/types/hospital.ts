@@ -485,7 +485,11 @@ export type ClinicalEventType =
   | 'EMERGENCY_CODE_RESOLVED'
   | 'RESUSCITATION_ROSC_ACHIEVED'
   | 'RESUSCITATION_TERMINATED'
-  | 'MCI_TRIAGE_TAGGED';
+  | 'MCI_TRIAGE_TAGGED'
+  | 'SURGICAL_CASE_SCHEDULED'
+  | 'SURGICAL_TIME_OUT_COMPLETED'
+  | 'SURGICAL_CASE_COMPLETED'
+  | 'SURGICAL_COUNTS_RECONCILED';
 
 export interface ClinicalEvent {
   id: string; // "Event/evt-001"
@@ -677,4 +681,122 @@ export interface MciPatientTag {
   taggedAt: string;
   taggedBy: string;
 }
+
+// ==========================================
+// 12. OPERATING THEATRE & PERIOPERATIVE SAFETY
+// ==========================================
+
+export type SurgicalCaseStatus = 
+  | 'SCHEDULED' 
+  | 'PRE_OP' 
+  | 'IN_ROOM' 
+  | 'TIME_OUT' 
+  | 'INTRA_OP' 
+  | 'CLOSING' 
+  | 'PACU_RECOVERY' 
+  | 'COMPLETED' 
+  | 'CANCELLED';
+
+export type AsaClassification = 
+  | 'ASA_I' 
+  | 'ASA_II' 
+  | 'ASA_III' 
+  | 'ASA_IV' 
+  | 'ASA_V' 
+  | 'ASA_VI' 
+  | 'ASA_IE' 
+  | 'ASA_IIE' 
+  | 'ASA_IIIE' 
+  | 'ASA_IVE' 
+  | 'ASA_VE';
+
+export interface WhoChecklistSignIn {
+  patientConfirmed: boolean;
+  siteMarked: boolean;
+  anesthesiaSafetyCheck: boolean;
+  pulseOximeterFunctioning: boolean;
+  allergyCheck: boolean;
+  difficultAirwayRisk: boolean;
+  bloodLossRiskOver500ml: boolean;
+  verifiedAt?: string;
+  verifiedBy?: string;
+}
+
+export interface WhoChecklistTimeOut {
+  teamIntroduced: boolean;
+  verbalConfirmationPatientSiteProcedure: boolean;
+  surgeonCriticalEventsReviewed: boolean;
+  anesthesiaConcernsReviewed: boolean;
+  nursingSterilityIndicatorsConfirmed: boolean;
+  antibioticProphylaxisWithin60Min: boolean;
+  antibioticGivenName?: string;
+  essentialImagingDisplayed: boolean;
+  verifiedAt?: string;
+  verifiedBy?: string;
+}
+
+export interface WhoChecklistSignOut {
+  procedureNameRecorded: boolean;
+  instrumentCountsCorrect: boolean;
+  spongeCountsCorrect: boolean;
+  needleCountsCorrect: boolean;
+  specimenLabeledCorrectly: boolean;
+  equipmentIssuesAddressed: boolean;
+  keyConcernsRecoveryReviewed: boolean;
+  verifiedAt?: string;
+  verifiedBy?: string;
+}
+
+export interface WhoChecklist {
+  signIn: WhoChecklistSignIn;
+  timeOut: WhoChecklistTimeOut;
+  signOut: WhoChecklistSignOut;
+  isCompleted: boolean;
+}
+
+export interface IntraoperativeRecord {
+  anesthesiaType: 'GENERAL' | 'SPINAL_EPIDURAL' | 'REGIONAL_BLOCK' | 'MAC_SEDATION' | 'LOCAL';
+  asaScore: AsaClassification;
+  primarySurgeon: string;
+  anesthesiologist: string;
+  scrubNurse: string;
+  circulatingNurse: string;
+  eblMl: number; // Estimated blood loss
+  urineOutputMl: number;
+  crystalloidsMl: number;
+  colloidsMl: number;
+  bloodProductsTransfused: string;
+  gasAgent: string;
+  spongeCountInitial: number;
+  spongeCountAdded: number;
+  spongeCountFinal: number;
+  needleCountInitial: number;
+  needleCountAdded: number;
+  needleCountFinal: number;
+  instrumentCountInitial: number;
+  instrumentCountFinal: number;
+  countsReconciled: boolean;
+  postOpDestination: 'PACU' | 'SURGICAL_ICU' | 'CARDIAC_ICU' | 'DAY_SURGERY';
+}
+
+export interface SurgicalCase {
+  id: string;
+  facilityId: string;
+  operatingRoom: string; // e.g. "OR 1 (General/Trauma)"
+  patientId: string;
+  patientName: string;
+  mrn: string;
+  procedureName: string;
+  specialty: 'GENERAL' | 'ORTHO' | 'CARDIAC' | 'NEURO' | 'UROLOGY' | 'ENT' | 'PLASTICS';
+  scheduledStartTime: string;
+  scheduledEndTime: string;
+  estimatedDurationMinutes: number;
+  status: SurgicalCaseStatus;
+  turnoverMinutesRemaining?: number;
+  checklist: WhoChecklist;
+  intraoperative: IntraoperativeRecord;
+  pacuStatus?: string;
+  notes?: string;
+}
+
 

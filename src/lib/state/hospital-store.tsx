@@ -25,7 +25,10 @@ import {
   DoorToMetric,
   ResuscitationRecord,
   MciPatientTag,
-  EmergencyCodeType
+  EmergencyCodeType,
+  SurgicalCase,
+  WhoChecklist,
+  IntraoperativeRecord
 } from "@/types/hospital";
 import { tenantRepository } from "../db/tenant-repository";
 import { calculateNEWS2 } from "../services/news2";
@@ -145,6 +148,12 @@ interface HospitalContextType {
   recordResuscitationEvent: (record: ResuscitationRecord) => ResuscitationRecord;
   recordMciTag: (tagData: Omit<MciPatientTag, 'id' | 'facilityId' | 'taggedAt'>) => MciPatientTag;
 
+  // Operating Theatre & Perioperative Safety
+  surgicalCases: SurgicalCase[];
+  scheduleSurgicalCase: (caseData: Omit<SurgicalCase, 'id' | 'facilityId'>) => SurgicalCase;
+  updateSurgicalCase: (caseId: string, updates: Partial<SurgicalCase>) => SurgicalCase;
+  updateWhoChecklist: (caseId: string, phase: 'signIn' | 'timeOut' | 'signOut', checks: any) => SurgicalCase;
+
   // Simulated Emergency Actions
   triggerEmergencyCode: (type: 'CODE_BLUE' | 'RAPID_RESPONSE' | 'CODE_STEMI', location: string) => void;
   acknowledgeEmergencyCode: (id: string) => void;
@@ -179,6 +188,7 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [doorToMetrics, setDoorToMetrics] = useState<DoorToMetric[]>(() => tenantRepository.getDoorToMetrics(activeFacilityId));
   const [resuscitations, setResuscitations] = useState<ResuscitationRecord[]>(() => tenantRepository.getResuscitations(activeFacilityId));
   const [mciTags, setMciTags] = useState<MciPatientTag[]>(() => tenantRepository.getMciTags(activeFacilityId));
+  const [surgicalCases, setSurgicalCases] = useState<SurgicalCase[]>(() => tenantRepository.getSurgicalCases(activeFacilityId));
 
   // Active selection
   const [activePatientId, setActivePatientId] = useState<string>(() => tenantRepository.getPatients(activeFacilityId)[0]?.id || "");
@@ -204,6 +214,7 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const newMetrics = tenantRepository.getDoorToMetrics(newFacilityId);
     const newResus = tenantRepository.getResuscitations(newFacilityId);
     const newMci = tenantRepository.getMciTags(newFacilityId);
+    const newSurg = tenantRepository.getSurgicalCases(newFacilityId);
 
     setDepartments(newDepts);
     setStaff(newStaff);
@@ -223,6 +234,7 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setDoorToMetrics(newMetrics);
     setResuscitations(newResus);
     setMciTags(newMci);
+    setSurgicalCases(newSurg);
     setActiveEmergency(null);
 
     if (newPatients.length > 0) {
@@ -943,6 +955,85 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return saved;
   };
 
+  // Operating Theatre & Perioperative Safety Operations
+  const scheduleSurgicalCase = (caseData: Omit<SurgicalCase, 'id' | 'facilityId'>) => {
+    const created = tenantRepository.atomicScheduleSurgicalCase(
+      activeFacilityId,
+      caseData,
+      currentStaff.id,
+      currentStaff.name,
+      currentStaff.role
+    );
+    setSurgicalCases(tenantRepository.getSurgicalCases(activeFacilityId));
+    setAuditLogs(tenantRepository.getAuditLogs(activeFacilityId));
+
+    emitClinicalEvent(
+      'SURGICAL_CASE_SCHEDULED',
+      `Surgical Case Booked: ${created.procedureName}`,
+      `Room: ${created.operatingRoom}. Surgeon: ${created.intraoperative.primarySurgeon}. Scheduled for ${new Date(created.scheduledStartTime).toLocaleTimeString()}`,
+      created.patientId,
+      activeEncounterId
+    );
+    return created;
+  };
+
+  const updateSurgicalCase = (caseId: string, updates: Partial<SurgicalCase>) => {
+    const updated = tenantRepository.atomicUpdateSurgicalCase(
+      activeFacilityId,
+      caseId,
+      updates,
+      currentStaff.id,
+      currentStaff.name,
+      currentStaff.role
+    );
+    setSurgicalCases(tenantRepository.getSurgicalCases(activeFacilityId));
+    setAuditLogs(tenantRepository.getAuditLogs(activeFacilityId));
+
+    if (updates.status === 'COMPLETED') {
+      emitClinicalEvent(
+        'SURGICAL_CASE_COMPLETED',
+        `Surgical Case Completed: ${updated.procedureName}`,
+        `Procedure concluded in ${updated.operatingRoom}. Destination: ${updated.intraoperative.postOpDestination}. EBL: ${updated.intraoperative.eblMl}mL`,
+        updated.patientId,
+        activeEncounterId
+      );
+    }
+    return updated;
+  };
+
+  const updateWhoChecklist = (caseId: string, phase: 'signIn' | 'timeOut' | 'signOut', checks: any) => {
+    const updated = tenantRepository.atomicUpdateWhoChecklist(
+      activeFacilityId,
+      caseId,
+      phase,
+      checks,
+      currentStaff.id,
+      currentStaff.name,
+      currentStaff.role
+    );
+    setSurgicalCases(tenantRepository.getSurgicalCases(activeFacilityId));
+    setAuditLogs(tenantRepository.getAuditLogs(activeFacilityId));
+
+    if (phase === 'timeOut') {
+      emitClinicalEvent(
+        'SURGICAL_TIME_OUT_COMPLETED',
+        `WHO Surgical Safety Time-Out Verified`,
+        `Formal verbal confirmation completed before incision by ${currentStaff.name} in ${updated.operatingRoom}. Antibiotics verified.`,
+        updated.patientId,
+        activeEncounterId
+      );
+    } else if (phase === 'signOut') {
+      emitClinicalEvent(
+        'SURGICAL_COUNTS_RECONCILED',
+        `WHO Surgical Sign-Out & Counts Reconciled`,
+        `Instruments, sponges, and needles formally reconciled correct. Specimen verified. Patient transferring to ${updated.intraoperative.postOpDestination}.`,
+        updated.patientId,
+        activeEncounterId
+      );
+    }
+    return updated;
+  };
+
   return (
     <HospitalContext.Provider value={{
       facilities,
@@ -971,6 +1062,10 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       updateDoorToMetric,
       recordResuscitationEvent,
       recordMciTag,
+      surgicalCases,
+      scheduleSurgicalCase,
+      updateSurgicalCase,
+      updateWhoChecklist,
       activePatientId,
       activeEncounterId,
       activePatient,

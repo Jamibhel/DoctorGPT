@@ -23,7 +23,11 @@ import {
   ResuscitationRecord,
   TraumaBay,
   DoorToMetric,
-  MciPatientTag
+  MciPatientTag,
+  SurgicalCase,
+  WhoChecklist,
+  IntraoperativeRecord,
+  SurgicalCaseStatus
 } from "@/types/hospital";
 
 import { 
@@ -74,6 +78,7 @@ export class TenantRepository {
   private doorToMetrics = new Map<string, DoorToMetric>();
   private resuscitations = new Map<string, ResuscitationRecord>();
   private mciTags = new Map<string, MciPatientTag>();
+  private surgicalCases = new Map<string, SurgicalCase>();
 
   // ==========================================
   // HIGH-PERFORMANCE SECONDARY TENANT INDEXES
@@ -703,6 +708,305 @@ export class TenantRepository {
       }
     ];
     seedMci.forEach(tag => this.mciTags.set(tag.id, tag));
+
+    // 10. Operating Theatre Surgical Cases Seeding
+    const seedCases: SurgicalCase[] = [
+      {
+        id: "surg-sjm-01",
+        facilityId: defaultFacilityId,
+        operatingRoom: "OR 1 (General/Trauma)",
+        patientId: "Patient/pat-sjm-1001",
+        patientName: "John Doe",
+        mrn: "BJI-SJM-001001",
+        procedureName: "Emergency Exploratory Laparotomy & Splenectomy",
+        specialty: "GENERAL",
+        scheduledStartTime: "2026-09-30T08:00:00Z",
+        scheduledEndTime: "2026-09-30T11:30:00Z",
+        estimatedDurationMinutes: 210,
+        status: "INTRA_OP",
+        checklist: {
+          signIn: {
+            patientConfirmed: true,
+            siteMarked: true,
+            anesthesiaSafetyCheck: true,
+            pulseOximeterFunctioning: true,
+            allergyCheck: true,
+            difficultAirwayRisk: false,
+            bloodLossRiskOver500ml: true,
+            verifiedAt: "2026-09-30T07:48:00Z",
+            verifiedBy: "David Daniels, RN"
+          },
+          timeOut: {
+            teamIntroduced: true,
+            verbalConfirmationPatientSiteProcedure: true,
+            surgeonCriticalEventsReviewed: true,
+            anesthesiaConcernsReviewed: true,
+            nursingSterilityIndicatorsConfirmed: true,
+            antibioticProphylaxisWithin60Min: true,
+            antibioticGivenName: "Cefazolin 2g IV at 07:42",
+            essentialImagingDisplayed: true,
+            verifiedAt: "2026-09-30T08:05:00Z",
+            verifiedBy: "Dr. Gregory House, MD"
+          },
+          signOut: {
+            procedureNameRecorded: false,
+            instrumentCountsCorrect: false,
+            spongeCountsCorrect: false,
+            needleCountsCorrect: false,
+            specimenLabeledCorrectly: false,
+            equipmentIssuesAddressed: false,
+            keyConcernsRecoveryReviewed: false
+          },
+          isCompleted: false
+        },
+        intraoperative: {
+          anesthesiaType: "GENERAL",
+          asaScore: "ASA_IVE",
+          primarySurgeon: "Dr. Gregory House, MD",
+          anesthesiologist: "Dr. James Wilson, MD",
+          scrubNurse: "Sarah Jenkins, RN",
+          circulatingNurse: "David Daniels, RN",
+          eblMl: 450,
+          urineOutputMl: 280,
+          crystalloidsMl: 1500,
+          colloidsMl: 500,
+          bloodProductsTransfused: "2 Units Packed Red Blood Cells (PRBC)",
+          gasAgent: "Sevoflurane 1.8% + Remifentanil TCI 3ng/mL",
+          spongeCountInitial: 30,
+          spongeCountAdded: 10,
+          spongeCountFinal: 0,
+          needleCountInitial: 15,
+          needleCountAdded: 5,
+          needleCountFinal: 0,
+          instrumentCountInitial: 48,
+          instrumentCountFinal: 0,
+          countsReconciled: false,
+          postOpDestination: "SURGICAL_ICU"
+        },
+        notes: "Major trauma victim with blunt splenic laceration Grade IV. Laparotomy actively ongoing."
+      },
+      {
+        id: "surg-sjm-02",
+        facilityId: defaultFacilityId,
+        operatingRoom: "OR 2 (Orthopedics)",
+        patientId: "Patient/pat-sjm-1002",
+        patientName: "Arthur Pendelton",
+        mrn: "BJI-SJM-001002",
+        procedureName: "Open Reduction & Internal Fixation (ORIF) Left Femur",
+        specialty: "ORTHO",
+        scheduledStartTime: "2026-09-30T09:00:00Z",
+        scheduledEndTime: "2026-09-30T12:00:00Z",
+        estimatedDurationMinutes: 180,
+        status: "TIME_OUT",
+        checklist: {
+          signIn: {
+            patientConfirmed: true,
+            siteMarked: true,
+            anesthesiaSafetyCheck: true,
+            pulseOximeterFunctioning: true,
+            allergyCheck: true,
+            difficultAirwayRisk: false,
+            bloodLossRiskOver500ml: false,
+            verifiedAt: "2026-09-30T08:50:00Z",
+            verifiedBy: "Amanda Vaughn, RN"
+          },
+          timeOut: {
+            teamIntroduced: true,
+            verbalConfirmationPatientSiteProcedure: false,
+            surgeonCriticalEventsReviewed: false,
+            anesthesiaConcernsReviewed: false,
+            nursingSterilityIndicatorsConfirmed: true,
+            antibioticProphylaxisWithin60Min: true,
+            antibioticGivenName: "Vancomycin 1g IV Infusion running",
+            essentialImagingDisplayed: true
+          },
+          signOut: {
+            procedureNameRecorded: false,
+            instrumentCountsCorrect: false,
+            spongeCountsCorrect: false,
+            needleCountsCorrect: false,
+            specimenLabeledCorrectly: false,
+            equipmentIssuesAddressed: false,
+            keyConcernsRecoveryReviewed: false
+          },
+          isCompleted: false
+        },
+        intraoperative: {
+          anesthesiaType: "SPINAL_EPIDURAL",
+          asaScore: "ASA_III",
+          primarySurgeon: "Dr. Robert Chase, MD",
+          anesthesiologist: "Dr. Allison Cameron, MD",
+          scrubNurse: "Staff Scrub RN",
+          circulatingNurse: "Amanda Vaughn, RN",
+          eblMl: 120,
+          urineOutputMl: 150,
+          crystalloidsMl: 800,
+          colloidsMl: 0,
+          bloodProductsTransfused: "None",
+          gasAgent: "Spinal Bupivacaine 0.5% Heavy + Midazolam Sedation",
+          spongeCountInitial: 20,
+          spongeCountAdded: 0,
+          spongeCountFinal: 0,
+          needleCountInitial: 10,
+          needleCountAdded: 0,
+          needleCountFinal: 0,
+          instrumentCountInitial: 36,
+          instrumentCountFinal: 0,
+          countsReconciled: false,
+          postOpDestination: "PACU"
+        },
+        notes: "Compound left mid-shaft femoral fracture. Pre-op traction released."
+      },
+      {
+        id: "surg-sjm-03",
+        facilityId: defaultFacilityId,
+        operatingRoom: "OR 3 (Cardiac/Vascular)",
+        patientId: "Patient/pat-sjm-1003",
+        patientName: "Eleanor Vance",
+        mrn: "BJI-SJM-001003",
+        procedureName: "Urgent Coronary Artery Bypass Graft (CABG x3)",
+        specialty: "CARDIAC",
+        scheduledStartTime: "2026-09-30T10:00:00Z",
+        scheduledEndTime: "2026-09-30T15:00:00Z",
+        estimatedDurationMinutes: 300,
+        status: "PRE_OP",
+        checklist: {
+          signIn: {
+            patientConfirmed: true,
+            siteMarked: true,
+            anesthesiaSafetyCheck: true,
+            pulseOximeterFunctioning: true,
+            allergyCheck: true,
+            difficultAirwayRisk: true,
+            bloodLossRiskOver500ml: true,
+            verifiedAt: "2026-09-30T09:15:00Z",
+            verifiedBy: "Staff Pre-Op RN"
+          },
+          timeOut: {
+            teamIntroduced: false,
+            verbalConfirmationPatientSiteProcedure: false,
+            surgeonCriticalEventsReviewed: false,
+            anesthesiaConcernsReviewed: false,
+            nursingSterilityIndicatorsConfirmed: false,
+            antibioticProphylaxisWithin60Min: false,
+            essentialImagingDisplayed: false
+          },
+          signOut: {
+            procedureNameRecorded: false,
+            instrumentCountsCorrect: false,
+            spongeCountsCorrect: false,
+            needleCountsCorrect: false,
+            specimenLabeledCorrectly: false,
+            equipmentIssuesAddressed: false,
+            keyConcernsRecoveryReviewed: false
+          },
+          isCompleted: false
+        },
+        intraoperative: {
+          anesthesiaType: "GENERAL",
+          asaScore: "ASA_IVE",
+          primarySurgeon: "Dr. Lisa Cuddy, MD",
+          anesthesiologist: "Dr. Eric Foreman, MD",
+          scrubNurse: "Cardiac Scrub RN",
+          circulatingNurse: "Staff RN",
+          eblMl: 0,
+          urineOutputMl: 50,
+          crystalloidsMl: 200,
+          colloidsMl: 0,
+          bloodProductsTransfused: "4 Units PRBC on hold in Blood Bank",
+          gasAgent: "Isoflurane + Fentanyl High-Dose",
+          spongeCountInitial: 40,
+          spongeCountAdded: 0,
+          spongeCountFinal: 0,
+          needleCountInitial: 25,
+          needleCountAdded: 0,
+          needleCountFinal: 0,
+          instrumentCountInitial: 65,
+          instrumentCountFinal: 0,
+          countsReconciled: false,
+          postOpDestination: "CARDIAC_ICU"
+        },
+        notes: "Post-cardiac arrest patient with critical 3-vessel CAD. Pre-op anesthesia line placement underway."
+      },
+      {
+        id: "surg-sjm-04",
+        facilityId: defaultFacilityId,
+        operatingRoom: "OR 4 (Neurosurgery/Robotics)",
+        patientId: "Patient/pat-sjm-1002",
+        patientName: "Arthur Pendelton",
+        mrn: "BJI-SJM-001002",
+        procedureName: "Stereotactic Robotic Craniotomy (Case Completed)",
+        specialty: "NEURO",
+        scheduledStartTime: "2026-09-30T06:00:00Z",
+        scheduledEndTime: "2026-09-30T08:30:00Z",
+        estimatedDurationMinutes: 150,
+        status: "PACU_RECOVERY",
+        turnoverMinutesRemaining: 15,
+        checklist: {
+          signIn: {
+            patientConfirmed: true,
+            siteMarked: true,
+            anesthesiaSafetyCheck: true,
+            pulseOximeterFunctioning: true,
+            allergyCheck: true,
+            difficultAirwayRisk: false,
+            bloodLossRiskOver500ml: false,
+            verifiedAt: "2026-09-30T05:45:00Z",
+            verifiedBy: "PACU Nurse"
+          },
+          timeOut: {
+            teamIntroduced: true,
+            verbalConfirmationPatientSiteProcedure: true,
+            surgeonCriticalEventsReviewed: true,
+            anesthesiaConcernsReviewed: true,
+            nursingSterilityIndicatorsConfirmed: true,
+            antibioticProphylaxisWithin60Min: true,
+            essentialImagingDisplayed: true,
+            verifiedAt: "2026-09-30T06:10:00Z",
+            verifiedBy: "Dr. Gregory House, MD"
+          },
+          signOut: {
+            procedureNameRecorded: true,
+            instrumentCountsCorrect: true,
+            spongeCountsCorrect: true,
+            needleCountsCorrect: true,
+            specimenLabeledCorrectly: true,
+            equipmentIssuesAddressed: true,
+            keyConcernsRecoveryReviewed: true,
+            verifiedAt: "2026-09-30T08:25:00Z",
+            verifiedBy: "Sarah Jenkins, RN"
+          },
+          isCompleted: true
+        },
+        intraoperative: {
+          anesthesiaType: "GENERAL",
+          asaScore: "ASA_II",
+          primarySurgeon: "Dr. Gregory House, MD",
+          anesthesiologist: "Dr. James Wilson, MD",
+          scrubNurse: "Sarah Jenkins, RN",
+          circulatingNurse: "David Daniels, RN",
+          eblMl: 85,
+          urineOutputMl: 320,
+          crystalloidsMl: 1200,
+          colloidsMl: 0,
+          bloodProductsTransfused: "None",
+          gasAgent: "Total Intravenous Anesthesia (TIVA) Propofol + Remifentanil",
+          spongeCountInitial: 20,
+          spongeCountAdded: 5,
+          spongeCountFinal: 25,
+          needleCountInitial: 12,
+          needleCountAdded: 0,
+          needleCountFinal: 12,
+          instrumentCountInitial: 40,
+          instrumentCountFinal: 40,
+          countsReconciled: true,
+          postOpDestination: "PACU"
+        },
+        pacuStatus: "Extubated, GCS 15, Aldrete score 9/10, stable hemodynamics. Suite cleaning in progress.",
+        notes: "Uncomplicated procedure. Room turnover cleaning underway."
+      }
+    ];
+    seedCases.forEach(c => this.surgicalCases.set(c.id, c));
   }
 
   // ==========================================
@@ -1570,6 +1874,156 @@ export class TenantRepository {
     });
 
     return newTag;
+  }
+
+  // ==========================================
+  // OPERATING THEATRE & SURGICAL OPERATIONS
+  // ==========================================
+
+  public getSurgicalCases(facilityId: string, patientId?: string): SurgicalCase[] {
+    const list = Array.from(this.surgicalCases.values()).filter(c => c.facilityId === facilityId);
+    if (patientId) {
+      return list.filter(c => c.patientId === patientId);
+    }
+    return list;
+  }
+
+  public getSurgicalCaseById(facilityId: string, caseId: string): SurgicalCase | null {
+    const surgCase = this.surgicalCases.get(caseId);
+    if (!surgCase) return null;
+    if (surgCase.facilityId !== facilityId) {
+      throw new TenantAccessDeniedError(facilityId, "SurgicalCase", caseId);
+    }
+    return surgCase;
+  }
+
+  public atomicScheduleSurgicalCase(
+    facilityId: string,
+    caseData: Omit<SurgicalCase, 'id' | 'facilityId'>,
+    actorId: string,
+    actorName: string,
+    actorRole: string
+  ): SurgicalCase {
+    const id = `surg-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
+    const newCase: SurgicalCase = {
+      ...caseData,
+      id,
+      facilityId
+    };
+    this.surgicalCases.set(id, newCase);
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName,
+      actorRole: (actorRole as UserRole) || 'SURGEON',
+      action: "SURGICAL_CASE_SCHEDULED",
+      resourceType: "SurgicalCase",
+      resourceId: id,
+      patientId: newCase.patientId,
+      timestamp: new Date().toISOString(),
+      newValue: `${newCase.operatingRoom}: ${newCase.procedureName} (${newCase.status})`,
+      source: "Operating_Theatre_Scheduler"
+    });
+
+    return newCase;
+  }
+
+  public atomicUpdateSurgicalCase(
+    facilityId: string,
+    caseId: string,
+    updates: Partial<SurgicalCase>,
+    actorId: string,
+    actorName: string,
+    actorRole: string
+  ): SurgicalCase {
+    const existing = this.surgicalCases.get(caseId);
+    if (!existing) throw new Error(`Surgical case ${caseId} not found`);
+    if (existing.facilityId !== facilityId) {
+      throw new TenantAccessDeniedError(facilityId, "SurgicalCase", caseId);
+    }
+
+    const updated: SurgicalCase = {
+      ...existing,
+      ...updates
+    };
+    this.surgicalCases.set(caseId, updated);
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName,
+      actorRole: (actorRole as UserRole) || 'CLINICAL_STAFF',
+      action: "SURGICAL_CASE_UPDATED",
+      resourceType: "SurgicalCase",
+      resourceId: caseId,
+      patientId: updated.patientId,
+      timestamp: new Date().toISOString(),
+      previousValue: existing.status,
+      newValue: updated.status,
+      source: "Operating_Theatre_Console"
+    });
+
+    return updated;
+  }
+
+  public atomicUpdateWhoChecklist(
+    facilityId: string,
+    caseId: string,
+    phase: 'signIn' | 'timeOut' | 'signOut',
+    checks: any,
+    actorId: string,
+    actorName: string,
+    actorRole: string
+  ): SurgicalCase {
+    const existing = this.surgicalCases.get(caseId);
+    if (!existing) throw new Error(`Surgical case ${caseId} not found`);
+    if (existing.facilityId !== facilityId) {
+      throw new TenantAccessDeniedError(facilityId, "SurgicalCase", caseId);
+    }
+
+    const updatedChecklist = {
+      ...existing.checklist,
+      [phase]: {
+        ...existing.checklist[phase],
+        ...checks,
+        verifiedAt: new Date().toISOString(),
+        verifiedBy: actorName
+      }
+    };
+
+    const isCompleted = 
+      updatedChecklist.signIn.patientConfirmed &&
+      updatedChecklist.timeOut.verbalConfirmationPatientSiteProcedure &&
+      updatedChecklist.signOut.instrumentCountsCorrect;
+
+    updatedChecklist.isCompleted = isCompleted;
+
+    const updated: SurgicalCase = {
+      ...existing,
+      checklist: updatedChecklist,
+      status: phase === 'signIn' ? 'IN_ROOM' : phase === 'timeOut' ? 'INTRA_OP' : 'PACU_RECOVERY'
+    };
+    this.surgicalCases.set(caseId, updated);
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName,
+      actorRole: (actorRole as UserRole) || 'SURGEON',
+      action: `WHO_CHECKLIST_${phase.toUpperCase()}_VERIFIED`,
+      resourceType: "WhoChecklist",
+      resourceId: caseId,
+      patientId: updated.patientId,
+      timestamp: new Date().toISOString(),
+      newValue: `Phase: ${phase} verified by ${actorName}`,
+      source: "WHO_Surgical_Safety_Console"
+    });
+
+    return updated;
   }
 
   private logAudit(entry: AuditLogEntry) {
