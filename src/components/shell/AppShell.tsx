@@ -46,7 +46,8 @@ import {
   X,
   Ambulance,
   Scissors,
-  Zap 
+  Zap,
+  Database
 } from "lucide-react";
 
 export type DeviceMode = "AUTO" | "DESKTOP" | "TABLET" | "PHONE";
@@ -585,6 +586,13 @@ export const AppShell: React.FC<AppShellProps> = ({
                 onClick={() => onSelectView("facility_admin")}
                 collapsed={navCollapsed}
               />
+              <NavRailItem
+                icon={<Database className="w-4 h-4 text-emerald-400" />}
+                label="FHIR Interop"
+                isActive={activeView === "fhir"}
+                onClick={() => onSelectView("fhir")}
+                collapsed={navCollapsed}
+              />
             </nav>
 
             {/* Bottom Facility Context */}
@@ -817,6 +825,15 @@ export const AppShell: React.FC<AppShellProps> = ({
             isActive={activeView === "facility_admin"}
             onClick={() => {
               onSelectView("facility_admin");
+              setIsMobileMenuOpen(false);
+            }}
+          />
+          <NavRailItem
+            icon={<Database className="w-4 h-4 text-emerald-600" />}
+            label="FHIR R4 Interop & HIE"
+            isActive={activeView === "fhir"}
+            onClick={() => {
+              onSelectView("fhir");
               setIsMobileMenuOpen(false);
             }}
           />

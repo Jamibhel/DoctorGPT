@@ -37,7 +37,8 @@ import {
   LayoutGrid,
   ListOrdered,
   Ambulance,
-  Zap
+  Zap,
+  Database
 } from "lucide-react";
 import { useHospital } from "@/lib/state/hospital-store";
 import { UserRole, OrderType, VitalSignObservation, DiagnosticLabResult } from "@/types/hospital";
@@ -56,6 +57,7 @@ import { AmbientScribeWorkspace } from "../scribe";
 import { EmergencyWorkspace } from "../emergency";
 import { OperatingTheatreWorkspace } from "../surgery";
 import { BedMatrixWorkspace } from "../beds";
+import { FhirInteroperabilityWorkspace } from "../fhir";
 
 export interface DesktopHospitalWorkspaceProps {
   externalView?: string;
@@ -98,7 +100,7 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
 
   // Navigation State
   // Active primary view: command center -> patient workspace -> operations/meds/imaging/pharmacy -> task-specific views
-  const [activeView, setActiveView] = useState<'command' | 'chart' | 'orders' | 'medications' | 'imaging' | 'pharmacy' | 'beds' | 'scribe' | 'operations' | 'ot' | 'facility_admin' | 'registry' | 'emergency' | 'trauma'>('command');
+  const [activeView, setActiveView] = useState<'command' | 'chart' | 'orders' | 'medications' | 'imaging' | 'pharmacy' | 'beds' | 'scribe' | 'operations' | 'ot' | 'facility_admin' | 'registry' | 'emergency' | 'trauma' | 'fhir'>('command');
   
   // Sync with AppShell activeView if provided
   React.useEffect(() => {
@@ -109,6 +111,8 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
         setActiveView('registry');
       } else if (externalView === 'emergency' || externalView === 'trauma') {
         setActiveView('emergency');
+      } else if (externalView === 'fhir') {
+        setActiveView('fhir');
       } else if (['command', 'chart', 'orders', 'medications', 'imaging', 'pharmacy', 'beds', 'scribe', 'operations', 'ot', 'cpoe'].includes(externalView)) {
         setActiveView(externalView as any);
       }
@@ -561,6 +565,23 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
                   </div>
                   <span className="text-[10px] bg-bji-green-50 text-bji-green-700 font-mono font-bold px-1 rounded border border-bji-green-200">
                     Tenant
+                  </span>
+                </button>
+
+                <button
+                  onClick={() => setActiveView('fhir')}
+                  className={`w-full text-left px-2 py-1.5 rounded-md border flex items-center justify-between transition font-medium col-span-2 ${
+                    activeView === 'fhir'
+                      ? 'bg-[#0f172a] text-white border-[#0f172a] font-semibold'
+                      : 'bg-white text-slate-700 border-[#d7dee7] hover:bg-slate-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Database className="w-4 h-4 shrink-0 text-emerald-600" />
+                    <span>FHIR Interop &amp; HIE</span>
+                  </div>
+                  <span className="text-[10px] bg-emerald-50 text-emerald-700 font-mono font-bold px-1 rounded border border-emerald-200">
+                    R4
                   </span>
                 </button>
               </div>
@@ -1788,6 +1809,13 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
                 setActiveView('chart');
               }}
             />
+          )}
+
+          {/* ==================================================== */}
+          {/* VIEW: FHIR R4 INTEROPERABILITY & HIE GATEWAY        */}
+          {/* ==================================================== */}
+          {activeView === 'fhir' && (
+            <FhirInteroperabilityWorkspace />
           )}
         </main>
       </div>
