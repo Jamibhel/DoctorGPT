@@ -43,7 +43,9 @@ import {
   Users, 
   Wifi, 
   WifiOff, 
-  X 
+  X,
+  Ambulance,
+  Zap 
 } from "lucide-react";
 
 export type DeviceMode = "AUTO" | "DESKTOP" | "TABLET" | "PHONE";
@@ -146,12 +148,23 @@ export const AppShell: React.FC<AppShellProps> = ({
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="xs"
+              className="bg-white/20 text-white hover:bg-white/30 border-white/50 font-bold"
+              onClick={() => onSelectView("emergency")}
+            >
+              Open Trauma Console
+            </Button>
             {activeEmergency.state === "ACTIVE" ? (
               <Button
                 variant="outline"
                 size="xs"
                 className="bg-white text-bji-red-700 hover:bg-bji-red-50 border-white font-bold"
-                onClick={() => acknowledgeEmergencyCode(activeEmergency.id)}
+                onClick={() => {
+                  acknowledgeEmergencyCode(activeEmergency.id);
+                  onSelectView("emergency");
+                }}
               >
                 Acknowledge On-Scene
               </Button>
@@ -528,6 +541,15 @@ export const AppShell: React.FC<AppShellProps> = ({
                 collapsed={navCollapsed}
               />
               <NavRailItem
+                icon={<Ambulance className="w-4 h-4 text-bji-red-400" />}
+                label="Trauma & Resus"
+                badge={activeEmergency ? "STAT" : undefined}
+                badgeTone="danger"
+                isActive={activeView === "emergency" || activeView === "trauma"}
+                onClick={() => onSelectView("emergency")}
+                collapsed={navCollapsed}
+              />
+              <NavRailItem
                 icon={<Monitor className="w-4 h-4" />}
                 label="PACS Imaging"
                 isActive={activeView === "imaging"}
@@ -731,6 +753,17 @@ export const AppShell: React.FC<AppShellProps> = ({
             isActive={activeView === "beds"}
             onClick={() => {
               onSelectView("beds");
+              setIsMobileMenuOpen(false);
+            }}
+          />
+          <NavRailItem
+            icon={<Ambulance className="w-4 h-4 text-bji-red-400" />}
+            label="Trauma Bay & Resus Board"
+            badge={activeEmergency ? "STAT" : undefined}
+            badgeTone="danger"
+            isActive={activeView === "emergency" || activeView === "trauma"}
+            onClick={() => {
+              onSelectView("emergency");
               setIsMobileMenuOpen(false);
             }}
           />

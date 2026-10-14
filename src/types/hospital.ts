@@ -482,7 +482,10 @@ export type ClinicalEventType =
   | 'CDS_ALERT_OVERRIDDEN'
   | 'EMERGENCY_CODE_TRIGGERED'
   | 'EMERGENCY_CODE_ACKNOWLEDGED'
-  | 'EMERGENCY_CODE_RESOLVED';
+  | 'EMERGENCY_CODE_RESOLVED'
+  | 'RESUSCITATION_ROSC_ACHIEVED'
+  | 'RESUSCITATION_TERMINATED'
+  | 'MCI_TRIAGE_TAGGED';
 
 export interface ClinicalEvent {
   id: string; // "Event/evt-001"
@@ -519,10 +522,10 @@ export interface AuditLogEntry {
 }
 
 // ==========================================
-// 11. SIMULATED EMERGENCY CODE ACTIONS
+// 11. SIMULATED EMERGENCY CODE ACTIONS & RESUSCITATION
 // ==========================================
 
-export type EmergencyCodeType = 'CODE_BLUE' | 'RAPID_RESPONSE' | 'CODE_STEMI' | 'CODE_STROKE';
+export type EmergencyCodeType = 'CODE_BLUE' | 'RAPID_RESPONSE' | 'CODE_STEMI' | 'CODE_STROKE' | 'TRAUMA_STAT';
 export type EmergencyCodeState = 'ACTIVE' | 'ACKNOWLEDGED' | 'ESCALATED' | 'RESOLVED';
 
 export interface SimulatedEmergencyEvent {
@@ -541,3 +544,137 @@ export interface SimulatedEmergencyEvent {
   resolvedBy?: string;
   clinicalSummary: string;
 }
+
+export type ResuscitationRhythm = 
+  | 'VENTRICULAR_FIBRILLATION' 
+  | 'PULSELESS_VT' 
+  | 'ASYSTOLE' 
+  | 'PEA' 
+  | 'ORGANIZED_SINUS' 
+  | 'ROSC';
+
+export interface ResuscitationShock {
+  id: string;
+  timestamp: string;
+  cycleNumber: number;
+  energyJoules: number;
+  deliveredBy: string;
+}
+
+export interface ResuscitationMedication {
+  id: string;
+  timestamp: string;
+  cycleNumber: number;
+  drug: string;
+  dose: string;
+  route: string;
+  givenBy: string;
+}
+
+export interface ResuscitationLogEntry {
+  id: string;
+  timestamp: string;
+  category: 'RHYTHM' | 'SHOCK' | 'MEDICATION' | 'AIRWAY' | 'REVERSIBLE_CAUSE' | 'NOTE';
+  text: string;
+  cycleNumber: number;
+}
+
+export interface ReversibleCausesState {
+  hypovolemia: boolean;
+  hypoxia: boolean;
+  hydrogenAcidosis: boolean;
+  hypoHyperkalemia: boolean;
+  hypothermia: boolean;
+  tensionPneumothorax: boolean;
+  tamponadeCardiac: boolean;
+  toxins: boolean;
+  thrombosisPulmonary: boolean;
+  thrombosisCoronary: boolean;
+}
+
+export interface ResuscitationAirway {
+  type: 'BAG_VALVE_MASK' | 'SUPRAGLOTTIC' | 'ENDOTRACHEAL_TUBE';
+  tubeSize?: string;
+  depthCm?: number;
+  etco2MmHg?: number;
+  verifiedMethod?: string;
+}
+
+export interface ResuscitationRecord {
+  id: string;
+  facilityId: string;
+  patientId: string;
+  encounterId: string;
+  codeType: EmergencyCodeType;
+  isDrill: boolean;
+  status: 'ACTIVE' | 'ROSC_ACHIEVED' | 'TERMINATED' | 'TRANSFERRED';
+  startedAt: string;
+  endedAt?: string;
+  currentCprCycle: number;
+  currentCycleSeconds: number; // 0-120s timer
+  totalElapsedSeconds: number;
+  lastRhythm: ResuscitationRhythm;
+  rhythmHistory: Array<{ timestamp: string; rhythm: ResuscitationRhythm; shockable: boolean }>;
+  shocksDelivered: ResuscitationShock[];
+  medicationsGiven: ResuscitationMedication[];
+  airway: ResuscitationAirway;
+  reversibleCauses: ReversibleCausesState;
+  reversibleCausesNotes: string;
+  teamLead: string;
+  compressorStaff: string[];
+  airwayStaff: string;
+  recorderStaff: string;
+  eventLogs: ResuscitationLogEntry[];
+  outcomeNotes?: string;
+}
+
+export interface DoorToMetric {
+  id: string;
+  type: 'DOOR_TO_BALLOON' | 'DOOR_TO_NEEDLE';
+  patientId: string;
+  patientName: string;
+  mrn: string;
+  targetMinutes: number; // 90 for Balloon, 60 for Needle
+  arrivalTime: string;
+  interventionTime?: string;
+  currentElapsedMinutes: number;
+  status: 'ON_TARGET' | 'CRITICAL_WINDOW' | 'BREACHED' | 'ACHIEVED';
+}
+
+export interface TraumaBay {
+  id: string;
+  bayNumber: string;
+  name: string;
+  status: 'OCCUPIED' | 'AVAILABLE' | 'RESERVED' | 'CLEANING';
+  patientId?: string;
+  patientName?: string;
+  mrn?: string;
+  acuity: 1 | 2 | 3 | 4 | 5; // Emergency Severity Index (ESI) 1=Resuscitation to 5=Non-urgent
+  chiefComplaint?: string;
+  attendingPhysician?: string;
+  primaryNurse?: string;
+  arrivalTime?: string;
+  activeCode?: EmergencyCodeType;
+}
+
+export type MciTriageCategory = 'RED_IMMEDIATE' | 'YELLOW_DELAYED' | 'GREEN_MINOR' | 'BLACK_EXPECTANT';
+
+export interface MciPatientTag {
+  id: string;
+  facilityId: string;
+  disasterCode: string;
+  tagNumber: string;
+  triageCategory: MciTriageCategory;
+  estimatedAgeGroup: 'PEDIATRIC' | 'ADULT' | 'GERIATRIC';
+  gender: 'MALE' | 'FEMALE' | 'UNKNOWN';
+  chiefInjuries: string;
+  isAmbulatory: boolean;
+  spontaneousBreathing: boolean;
+  respiratoryRate?: number;
+  hasRadialPulse: boolean;
+  followsCommands: boolean;
+  assignedBayId?: string;
+  taggedAt: string;
+  taggedBy: string;
+}
+

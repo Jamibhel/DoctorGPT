@@ -35,7 +35,9 @@ import {
   HeartPulse,
   Flame,
   LayoutGrid,
-  ListOrdered
+  ListOrdered,
+  Ambulance,
+  Zap
 } from "lucide-react";
 import { useHospital } from "@/lib/state/hospital-store";
 import { UserRole, OrderType, VitalSignObservation, DiagnosticLabResult } from "@/types/hospital";
@@ -51,6 +53,7 @@ import { FacilityOperationsWorkspace } from "../facility";
 import { PatientRegistryWorkspace } from "../patients";
 import { VitalsFlowsheet, VitalsEntryModal } from "../vitals";
 import { AmbientScribeWorkspace } from "../scribe";
+import { EmergencyWorkspace } from "../emergency";
 
 export interface DesktopHospitalWorkspaceProps {
   externalView?: string;
@@ -92,7 +95,7 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
 
   // Navigation State
   // Active primary view: command center -> patient workspace -> operations/meds/imaging/pharmacy -> task-specific views
-  const [activeView, setActiveView] = useState<'command' | 'chart' | 'orders' | 'medications' | 'imaging' | 'pharmacy' | 'beds' | 'scribe' | 'operations' | 'ot' | 'facility_admin' | 'registry'>('command');
+  const [activeView, setActiveView] = useState<'command' | 'chart' | 'orders' | 'medications' | 'imaging' | 'pharmacy' | 'beds' | 'scribe' | 'operations' | 'ot' | 'facility_admin' | 'registry' | 'emergency' | 'trauma'>('command');
   
   // Sync with AppShell activeView if provided
   React.useEffect(() => {
@@ -101,7 +104,9 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
         setActiveView('facility_admin');
       } else if (externalView === 'registry') {
         setActiveView('registry');
-      } else if (['command', 'chart', 'orders', 'medications', 'imaging', 'pharmacy', 'beds', 'scribe', 'operations', 'ot'].includes(externalView)) {
+      } else if (externalView === 'emergency' || externalView === 'trauma') {
+        setActiveView('emergency');
+      } else if (['command', 'chart', 'orders', 'medications', 'imaging', 'pharmacy', 'beds', 'scribe', 'operations', 'ot', 'cpoe'].includes(externalView)) {
         setActiveView(externalView as any);
       }
     }
@@ -562,6 +567,23 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
                     <span>Staff Coverage</span>
                   </div>
                   <span className="text-[10px] font-mono">{staff.length}</span>
+                </button>
+
+                <button
+                  onClick={() => setActiveView('emergency')}
+                  className={`w-full text-left px-2 py-1.5 rounded-md border flex items-center justify-between transition font-medium col-span-2 ${
+                    activeView === 'emergency' || activeView === 'trauma'
+                      ? 'bg-bji-red-700 text-white border-bji-red-700 font-semibold'
+                      : 'bg-white text-bji-red-700 border-bji-red-200 hover:bg-bji-red-50'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <Ambulance className="w-4 h-4 shrink-0 text-bji-red-600" />
+                    <span className="font-bold">Emergency &amp; Trauma Bays</span>
+                  </div>
+                  <span className="text-[10px] bg-bji-red-100 text-bji-red-800 font-mono font-bold px-1.5 py-0.5 rounded border border-bji-red-300">
+                    STAT
+                  </span>
                 </button>
 
                 <button
@@ -2034,6 +2056,18 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
           {/* ==================================================== */}
           {activeView === 'registry' && (
             <PatientRegistryWorkspace />
+          )}
+
+          {/* ==================================================== */}
+          {/* VIEW: EMERGENCY RESUSCITATION & TRAUMA BAY BOARD    */}
+          {/* ==================================================== */}
+          {(activeView === 'emergency' || activeView === 'trauma') && (
+            <EmergencyWorkspace 
+              onSelectPatientChart={(patId) => {
+                setActivePatientId(patId);
+                setActiveView('chart');
+              }}
+            />
           )}
         </main>
       </div>

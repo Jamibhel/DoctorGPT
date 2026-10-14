@@ -19,7 +19,11 @@ import {
   ClinicalEvent,
   AuditLogEntry,
   PatientAllergy,
-  UserRole
+  UserRole,
+  ResuscitationRecord,
+  TraumaBay,
+  DoorToMetric,
+  MciPatientTag
 } from "@/types/hospital";
 
 import { 
@@ -66,6 +70,10 @@ export class TenantRepository {
   private notes = new Map<string, ClinicalNote>();
   private events: ClinicalEvent[] = [];
   private auditLogs: AuditLogEntry[] = [];
+  private traumaBays = new Map<string, TraumaBay>();
+  private doorToMetrics = new Map<string, DoorToMetric>();
+  private resuscitations = new Map<string, ResuscitationRecord>();
+  private mciTags = new Map<string, MciPatientTag>();
 
   // ==========================================
   // HIGH-PERFORMANCE SECONDARY TENANT INDEXES
@@ -440,6 +448,261 @@ export class TenantRepository {
     SEED_EVENTS.forEach((evt) => {
       this.events.push({ ...evt, facilityId: defaultFacilityId });
     });
+
+    // 6. Trauma Bays Seeding
+    const seedBays: TraumaBay[] = [
+      {
+        id: "bay-sjm-01",
+        bayNumber: "Bay 1",
+        name: "Resuscitation 1 (Trauma / Shock)",
+        status: "OCCUPIED",
+        patientId: "Patient/pat-sjm-1001",
+        patientName: "John Doe",
+        mrn: "BJI-SJM-001001",
+        acuity: 1,
+        chiefComplaint: "Acute Inferior STEMI with cardiogenic chest pain & diaphoresis",
+        attendingPhysician: "Dr. Gregory House, MD",
+        primaryNurse: "Sarah Jenkins, RN",
+        arrivalTime: "2026-09-30T17:18:00Z",
+        activeCode: "CODE_STEMI"
+      },
+      {
+        id: "bay-sjm-02",
+        bayNumber: "Bay 2",
+        name: "Trauma 1 (Neuro / Rapid Stroke)",
+        status: "OCCUPIED",
+        patientId: "Patient/pat-sjm-1002",
+        patientName: "Arthur Pendelton",
+        mrn: "BJI-SJM-001002",
+        acuity: 2,
+        chiefComplaint: "Acute Left MCA Ischemic Stroke symptoms (onset 75m, NIHSS 14)",
+        attendingPhysician: "Dr. James Wilson, MD",
+        primaryNurse: "David Daniels, RN",
+        arrivalTime: "2026-09-30T17:32:00Z",
+        activeCode: "CODE_STROKE"
+      },
+      {
+        id: "bay-sjm-03",
+        bayNumber: "Bay 3",
+        name: "Resuscitation 2 (Arrest / Airway)",
+        status: "OCCUPIED",
+        patientId: "Patient/pat-sjm-1003",
+        patientName: "Eleanor Vance",
+        mrn: "BJI-SJM-001003",
+        acuity: 1,
+        chiefComplaint: "Witnessed V-Fib Out-of-Hospital Cardiac Arrest (OHCA)",
+        attendingPhysician: "Dr. Gregory House, MD",
+        primaryNurse: "Amanda Vaughn, RN",
+        arrivalTime: "2026-09-30T17:48:00Z",
+        activeCode: "CODE_BLUE"
+      },
+      {
+        id: "bay-sjm-04",
+        bayNumber: "Bay 4",
+        name: "Trauma 2 (Surgical / Ortho)",
+        status: "AVAILABLE",
+        acuity: 3,
+        attendingPhysician: "Dr. Lisa Cuddy, MD",
+        primaryNurse: "Staff Floater"
+      },
+      {
+        id: "bay-sjm-05",
+        bayNumber: "Bay 5",
+        name: "Acute Medical 1",
+        status: "AVAILABLE",
+        acuity: 4,
+        attendingPhysician: "Dr. Robert Chase, MD",
+        primaryNurse: "Staff Floater"
+      },
+      {
+        id: "bay-sjm-06",
+        bayNumber: "Bay 6",
+        name: "Decontamination / Surge",
+        status: "RESERVED",
+        acuity: 3,
+        attendingPhysician: "Dr. Allison Cameron, MD",
+        primaryNurse: "Charge Nurse"
+      }
+    ];
+    seedBays.forEach(b => this.traumaBays.set(b.id, b));
+
+    // 7. Door-to-Metric Trackers
+    const seedMetrics: DoorToMetric[] = [
+      {
+        id: "dtm-01",
+        type: "DOOR_TO_BALLOON",
+        patientId: "Patient/pat-sjm-1001",
+        patientName: "John Doe",
+        mrn: "BJI-SJM-001001",
+        targetMinutes: 90,
+        arrivalTime: "2026-09-30T17:18:00Z",
+        currentElapsedMinutes: 42,
+        status: "ON_TARGET"
+      },
+      {
+        id: "dtm-02",
+        type: "DOOR_TO_NEEDLE",
+        patientId: "Patient/pat-sjm-1002",
+        patientName: "Arthur Pendelton",
+        mrn: "BJI-SJM-001002",
+        targetMinutes: 60,
+        arrivalTime: "2026-09-30T17:32:00Z",
+        currentElapsedMinutes: 28,
+        status: "ON_TARGET"
+      }
+    ];
+    seedMetrics.forEach(m => this.doorToMetrics.set(m.id, m));
+
+    // 8. Active Resuscitation Record
+    const seedResus: ResuscitationRecord = {
+      id: "resus-sjm-101",
+      facilityId: defaultFacilityId,
+      patientId: "Patient/pat-sjm-1003",
+      encounterId: "Encounter/enc-sjm-1003",
+      codeType: "CODE_BLUE",
+      isDrill: false,
+      status: "ACTIVE",
+      startedAt: "2026-09-30T17:48:00Z",
+      currentCprCycle: 2,
+      currentCycleSeconds: 45,
+      totalElapsedSeconds: 285,
+      lastRhythm: "VENTRICULAR_FIBRILLATION",
+      rhythmHistory: [
+        { timestamp: "2026-09-30T17:48:15Z", rhythm: "VENTRICULAR_FIBRILLATION", shockable: true },
+        { timestamp: "2026-09-30T17:50:20Z", rhythm: "VENTRICULAR_FIBRILLATION", shockable: true }
+      ],
+      shocksDelivered: [
+        { id: "shk-1", timestamp: "2026-09-30T17:48:30Z", cycleNumber: 1, energyJoules: 150, deliveredBy: "Dr. Gregory House, MD" },
+        { id: "shk-2", timestamp: "2026-09-30T17:50:35Z", cycleNumber: 2, energyJoules: 200, deliveredBy: "Dr. Gregory House, MD" }
+      ],
+      medicationsGiven: [
+        { id: "med-1", timestamp: "2026-09-30T17:49:00Z", cycleNumber: 1, drug: "Epinephrine", dose: "1 mg", route: "IV Push", givenBy: "Amanda Vaughn, RN" }
+      ],
+      airway: {
+        type: "ENDOTRACHEAL_TUBE",
+        tubeSize: "7.5 mm cuffed",
+        depthCm: 22,
+        etco2MmHg: 28,
+        verifiedMethod: "Waveform capnography + bilateral breath sounds"
+      },
+      reversibleCauses: {
+        hypovolemia: false,
+        hypoxia: true,
+        hydrogenAcidosis: false,
+        hypoHyperkalemia: true,
+        hypothermia: false,
+        tensionPneumothorax: false,
+        tamponadeCardiac: false,
+        toxins: false,
+        thrombosisPulmonary: false,
+        thrombosisCoronary: true
+      },
+      reversibleCausesNotes: "Suspected acute coronary thrombosis; elevated K+ pending stat blood gas verification. 100% FiO2 running via mechanical bag.",
+      teamLead: "Dr. Gregory House, MD",
+      compressorStaff: ["David Daniels, RN", "Sarah Jenkins, RN"],
+      airwayStaff: "Dr. Allison Cameron, MD",
+      recorderStaff: "Amanda Vaughn, RN",
+      eventLogs: [
+        { id: "log-1", timestamp: "2026-09-30T17:48:00Z", category: "NOTE", text: "Code Blue initiated in Bay 3 for pulseless patient. High-quality CPR started.", cycleNumber: 1 },
+        { id: "log-2", timestamp: "2026-09-30T17:48:15Z", category: "RHYTHM", text: "Rhythm check reveals coarse Ventricular Fibrillation (shockable).", cycleNumber: 1 },
+        { id: "log-3", timestamp: "2026-09-30T17:48:30Z", category: "SHOCK", text: "Delivered 150J biphasic shock. Immediate resumption of CPR.", cycleNumber: 1 },
+        { id: "log-4", timestamp: "2026-09-30T17:49:00Z", category: "MEDICATION", text: "Administered Epinephrine 1mg IV Push followed by 20mL saline flush.", cycleNumber: 1 },
+        { id: "log-5", timestamp: "2026-09-30T17:50:10Z", category: "AIRWAY", text: "Endotracheal tube 7.5mm placed at 22cm. EtCO2 confirmed at 28 mmHg.", cycleNumber: 2 },
+        { id: "log-6", timestamp: "2026-09-30T17:50:35Z", category: "SHOCK", text: "Delivered 200J biphasic shock for persistent VF. CPR resumed.", cycleNumber: 2 }
+      ]
+    };
+    this.resuscitations.set(seedResus.id, seedResus);
+
+    // 9. Mass Casualty Triage Seed Tags
+    const seedMci: MciPatientTag[] = [
+      {
+        id: "mci-tag-1",
+        facilityId: defaultFacilityId,
+        disasterCode: "MCI-HIGHWAY-77",
+        tagNumber: "MCI-RED-001",
+        triageCategory: "RED_IMMEDIATE",
+        estimatedAgeGroup: "ADULT",
+        gender: "MALE",
+        chiefInjuries: "Tension pneumothorax with severe respiratory distress, tracheal deviation",
+        isAmbulatory: false,
+        spontaneousBreathing: true,
+        respiratoryRate: 36,
+        hasRadialPulse: true,
+        followsCommands: false,
+        assignedBayId: "bay-sjm-01",
+        taggedAt: "2026-09-30T17:10:00Z",
+        taggedBy: "Triage Officer Miller"
+      },
+      {
+        id: "mci-tag-2",
+        facilityId: defaultFacilityId,
+        disasterCode: "MCI-HIGHWAY-77",
+        tagNumber: "MCI-RED-002",
+        triageCategory: "RED_IMMEDIATE",
+        estimatedAgeGroup: "ADULT",
+        gender: "FEMALE",
+        chiefInjuries: "Blunt abdominal trauma, massive hemoperitoneum, unstable pelvic fracture",
+        isAmbulatory: false,
+        spontaneousBreathing: true,
+        respiratoryRate: 28,
+        hasRadialPulse: false,
+        followsCommands: true,
+        assignedBayId: "bay-sjm-03",
+        taggedAt: "2026-09-30T17:15:00Z",
+        taggedBy: "Triage Officer Miller"
+      },
+      {
+        id: "mci-tag-3",
+        facilityId: defaultFacilityId,
+        disasterCode: "MCI-HIGHWAY-77",
+        tagNumber: "MCI-YEL-003",
+        triageCategory: "YELLOW_DELAYED",
+        estimatedAgeGroup: "ADULT",
+        gender: "MALE",
+        chiefInjuries: "Open left femur fracture, splinted, distal pulse palpable",
+        isAmbulatory: false,
+        spontaneousBreathing: true,
+        respiratoryRate: 20,
+        hasRadialPulse: true,
+        followsCommands: true,
+        taggedAt: "2026-09-30T17:20:00Z",
+        taggedBy: "Triage Officer Miller"
+      },
+      {
+        id: "mci-tag-4",
+        facilityId: defaultFacilityId,
+        disasterCode: "MCI-HIGHWAY-77",
+        tagNumber: "MCI-GRN-004",
+        triageCategory: "GREEN_MINOR",
+        estimatedAgeGroup: "PEDIATRIC",
+        gender: "FEMALE",
+        chiefInjuries: "Facial contusions and superficial lacerations, ambulatory",
+        isAmbulatory: true,
+        spontaneousBreathing: true,
+        respiratoryRate: 18,
+        hasRadialPulse: true,
+        followsCommands: true,
+        taggedAt: "2026-09-30T17:25:00Z",
+        taggedBy: "Triage Officer Miller"
+      },
+      {
+        id: "mci-tag-5",
+        facilityId: defaultFacilityId,
+        disasterCode: "MCI-HIGHWAY-77",
+        tagNumber: "MCI-BLK-005",
+        triageCategory: "BLACK_EXPECTANT",
+        estimatedAgeGroup: "ADULT",
+        gender: "MALE",
+        chiefInjuries: "Severe open traumatic brain injury, catastrophic crush, apnea after airway repositioning",
+        isAmbulatory: false,
+        spontaneousBreathing: false,
+        hasRadialPulse: false,
+        followsCommands: false,
+        taggedAt: "2026-09-30T17:05:00Z",
+        taggedBy: "Triage Officer Miller"
+      }
+    ];
+    seedMci.forEach(tag => this.mciTags.set(tag.id, tag));
   }
 
   // ==========================================
@@ -1171,6 +1434,142 @@ export class TenantRepository {
     });
 
     return note;
+  }
+
+  // ==========================================
+  // TRAUMA BAY & RESUSCITATION OPERATIONS
+  // ==========================================
+
+  public getTraumaBays(facilityId: string): TraumaBay[] {
+    return Array.from(this.traumaBays.values());
+  }
+
+  public updateTraumaBay(
+    facilityId: string,
+    bayId: string,
+    updates: Partial<TraumaBay>,
+    actorId: string,
+    actorRole: string
+  ): TraumaBay {
+    const bay = this.traumaBays.get(bayId);
+    if (!bay) throw new Error(`Trauma bay ${bayId} not found`);
+
+    const updated: TraumaBay = {
+      ...bay,
+      ...updates
+    };
+    this.traumaBays.set(bayId, updated);
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName: actorId,
+      actorRole: (actorRole as UserRole) || 'CLINICAL_STAFF',
+      action: "TRAUMA_BAY_UPDATED",
+      resourceType: "TraumaBay",
+      resourceId: bayId,
+      patientId: updated.patientId,
+      timestamp: new Date().toISOString(),
+      previousValue: JSON.stringify({ status: bay.status, patientId: bay.patientId }),
+      newValue: JSON.stringify({ status: updated.status, patientId: updated.patientId }),
+      source: "Trauma_Resuscitation_Board"
+    });
+
+    return updated;
+  }
+
+  public getDoorToMetrics(facilityId: string): DoorToMetric[] {
+    return Array.from(this.doorToMetrics.values());
+  }
+
+  public updateDoorToMetric(
+    facilityId: string,
+    metricId: string,
+    updates: Partial<DoorToMetric>
+  ): DoorToMetric {
+    const metric = this.doorToMetrics.get(metricId);
+    if (!metric) throw new Error(`Door to metric ${metricId} not found`);
+
+    const updated: DoorToMetric = {
+      ...metric,
+      ...updates
+    };
+    this.doorToMetrics.set(metricId, updated);
+    return updated;
+  }
+
+  public getResuscitations(facilityId: string, patientId?: string): ResuscitationRecord[] {
+    const list = Array.from(this.resuscitations.values()).filter(r => r.facilityId === facilityId);
+    if (patientId) {
+      return list.filter(r => r.patientId === patientId);
+    }
+    return list;
+  }
+
+  public atomicRecordResuscitationEvent(
+    facilityId: string,
+    record: ResuscitationRecord,
+    actorId: string,
+    actorName: string,
+    actorRole: string
+  ): ResuscitationRecord {
+    this.resuscitations.set(record.id, record);
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName,
+      actorRole: (actorRole as UserRole) || 'PHYSICIAN',
+      action: record.isDrill ? "CODE_BLUE_DRILL_LOGGED" : "CODE_BLUE_RESUSCITATION_LOGGED",
+      resourceType: "ResuscitationRecord",
+      resourceId: record.id,
+      patientId: record.patientId,
+      timestamp: new Date().toISOString(),
+      previousValue: `Cycle ${record.currentCprCycle - 1}`,
+      newValue: `Cycle ${record.currentCprCycle} (Shocks: ${record.shocksDelivered.length}, Meds: ${record.medicationsGiven.length})`,
+      source: "Code_Blue_Protocol_Engine"
+    });
+
+    return record;
+  }
+
+  public getMciTags(facilityId: string): MciPatientTag[] {
+    return Array.from(this.mciTags.values()).filter(t => t.facilityId === facilityId);
+  }
+
+  public atomicRecordMciTag(
+    facilityId: string,
+    tagData: Omit<MciPatientTag, 'id' | 'facilityId' | 'taggedAt'>,
+    actorId: string,
+    actorName: string,
+    actorRole: string
+  ): MciPatientTag {
+    const id = `mci-tag-${Date.now()}-${Math.random().toString(36).slice(2, 5)}`;
+    const newTag: MciPatientTag = {
+      ...tagData,
+      id,
+      facilityId,
+      taggedAt: new Date().toISOString()
+    };
+    this.mciTags.set(id, newTag);
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId,
+      actorName,
+      actorRole: (actorRole as UserRole) || 'CLINICAL_STAFF',
+      action: "MCI_TRIAGE_TAG_CREATED",
+      resourceType: "MciPatientTag",
+      resourceId: id,
+      timestamp: new Date().toISOString(),
+      newValue: `${newTag.tagNumber} (${newTag.triageCategory})`,
+      source: "MCI_START_Triage_Console"
+    });
+
+    return newTag;
   }
 
   private logAudit(entry: AuditLogEntry) {

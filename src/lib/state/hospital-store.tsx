@@ -15,12 +15,17 @@ import {
   MedicationAdministration, 
   Patient, 
   PatientAllergy, 
-  RadiologyStudy, 
+  RadiologyStudy,
   SimulatedEmergencyEvent, 
   StaffMember, 
   UserRole, 
   VitalSignObservation,
-  AuditLogEntry 
+  AuditLogEntry,
+  TraumaBay,
+  DoorToMetric,
+  ResuscitationRecord,
+  MciPatientTag,
+  EmergencyCodeType
 } from "@/types/hospital";
 import { tenantRepository } from "../db/tenant-repository";
 import { calculateNEWS2 } from "../services/news2";
@@ -130,6 +135,16 @@ interface HospitalContextType {
   createDepartment: (dept: Omit<HospitalDepartment, 'facilityId'>) => void;
   createBed: (bed: Omit<HospitalBed, 'facilityId'>) => void;
 
+  // Emergency Management & Resuscitation
+  traumaBays: TraumaBay[];
+  doorToMetrics: DoorToMetric[];
+  resuscitations: ResuscitationRecord[];
+  mciTags: MciPatientTag[];
+  updateTraumaBay: (bayId: string, updates: Partial<TraumaBay>) => void;
+  updateDoorToMetric: (metricId: string, updates: Partial<DoorToMetric>) => void;
+  recordResuscitationEvent: (record: ResuscitationRecord) => ResuscitationRecord;
+  recordMciTag: (tagData: Omit<MciPatientTag, 'id' | 'facilityId' | 'taggedAt'>) => MciPatientTag;
+
   // Simulated Emergency Actions
   triggerEmergencyCode: (type: 'CODE_BLUE' | 'RAPID_RESPONSE' | 'CODE_STEMI', location: string) => void;
   acknowledgeEmergencyCode: (id: string) => void;
@@ -160,6 +175,10 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [events, setEvents] = useState<ClinicalEvent[]>(() => tenantRepository.getEvents(activeFacilityId));
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>(() => tenantRepository.getAuditLogs(activeFacilityId));
   const [activeEmergency, setActiveEmergency] = useState<SimulatedEmergencyEvent | null>(null);
+  const [traumaBays, setTraumaBays] = useState<TraumaBay[]>(() => tenantRepository.getTraumaBays(activeFacilityId));
+  const [doorToMetrics, setDoorToMetrics] = useState<DoorToMetric[]>(() => tenantRepository.getDoorToMetrics(activeFacilityId));
+  const [resuscitations, setResuscitations] = useState<ResuscitationRecord[]>(() => tenantRepository.getResuscitations(activeFacilityId));
+  const [mciTags, setMciTags] = useState<MciPatientTag[]>(() => tenantRepository.getMciTags(activeFacilityId));
 
   // Active selection
   const [activePatientId, setActivePatientId] = useState<string>(() => tenantRepository.getPatients(activeFacilityId)[0]?.id || "");
@@ -181,6 +200,10 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     const newNotes = tenantRepository.getNotes(newFacilityId);
     const newEvents = tenantRepository.getEvents(newFacilityId);
     const newAudits = tenantRepository.getAuditLogs(newFacilityId);
+    const newBays = tenantRepository.getTraumaBays(newFacilityId);
+    const newMetrics = tenantRepository.getDoorToMetrics(newFacilityId);
+    const newResus = tenantRepository.getResuscitations(newFacilityId);
+    const newMci = tenantRepository.getMciTags(newFacilityId);
 
     setDepartments(newDepts);
     setStaff(newStaff);
@@ -196,6 +219,10 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setNotes(newNotes);
     setEvents(newEvents);
     setAuditLogs(newAudits);
+    setTraumaBays(newBays);
+    setDoorToMetrics(newMetrics);
+    setResuscitations(newResus);
+    setMciTags(newMci);
     setActiveEmergency(null);
 
     if (newPatients.length > 0) {
@@ -844,6 +871,78 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     setAuditLogs(audits);
   };
 
+  // Emergency & Resuscitation Operations
+  const updateTraumaBay = (bayId: string, updates: Partial<TraumaBay>) => {
+    const updated = tenantRepository.updateTraumaBay(
+      activeFacilityId,
+      bayId,
+      updates,
+      currentStaff.name,
+      currentStaff.role
+    );
+    setTraumaBays(tenantRepository.getTraumaBays(activeFacilityId));
+    setAuditLogs(tenantRepository.getAuditLogs(activeFacilityId));
+    return updated;
+  };
+
+  const updateDoorToMetric = (metricId: string, updates: Partial<DoorToMetric>) => {
+    const updated = tenantRepository.updateDoorToMetric(activeFacilityId, metricId, updates);
+    setDoorToMetrics(tenantRepository.getDoorToMetrics(activeFacilityId));
+    return updated;
+  };
+
+  const recordResuscitationEvent = (record: ResuscitationRecord) => {
+    const saved = tenantRepository.atomicRecordResuscitationEvent(
+      activeFacilityId,
+      record,
+      currentStaff.id,
+      currentStaff.name,
+      currentStaff.role
+    );
+    setResuscitations(tenantRepository.getResuscitations(activeFacilityId));
+    setAuditLogs(tenantRepository.getAuditLogs(activeFacilityId));
+
+    if (record.status === 'ROSC_ACHIEVED') {
+      emitClinicalEvent(
+        'RESUSCITATION_ROSC_ACHIEVED',
+        `ROSC ACHIEVED: Return of Spontaneous Circulation`,
+        `ROSC documented by ${currentStaff.name} after ${record.currentCprCycle} CPR cycles. Shocks: ${record.shocksDelivered.length}. Post-arrest protocol initiated.`,
+        record.patientId,
+        record.encounterId
+      );
+    } else if (record.status === 'TERMINATED') {
+      emitClinicalEvent(
+        'RESUSCITATION_TERMINATED',
+        `Resuscitation Efforts Ceased`,
+        `Resuscitation ceased by Team Lead ${record.teamLead} after ${record.currentCprCycle} cycles. Time of death/cessation documented.`,
+        record.patientId,
+        record.encounterId
+      );
+    }
+    return saved;
+  };
+
+  const recordMciTag = (tagData: Omit<MciPatientTag, 'id' | 'facilityId' | 'taggedAt'>) => {
+    const saved = tenantRepository.atomicRecordMciTag(
+      activeFacilityId,
+      tagData,
+      currentStaff.id,
+      currentStaff.name,
+      currentStaff.role
+    );
+    setMciTags(tenantRepository.getMciTags(activeFacilityId));
+    setAuditLogs(tenantRepository.getAuditLogs(activeFacilityId));
+
+    emitClinicalEvent(
+      'MCI_TRIAGE_TAGGED',
+      `MCI Triage Tag: ${saved.tagNumber} (${saved.triageCategory.replace('_', ' ')})`,
+      `Disaster Code: ${saved.disasterCode}. Chief: ${saved.chiefInjuries}. Tagged by ${currentStaff.name}`,
+      activePatientId,
+      activeEncounterId
+    );
+    return saved;
+  };
+
   return (
     <HospitalContext.Provider value={{
       facilities,
@@ -864,6 +963,14 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       notes,
       events,
       activeEmergency,
+      traumaBays,
+      doorToMetrics,
+      resuscitations,
+      mciTags,
+      updateTraumaBay,
+      updateDoorToMetric,
+      recordResuscitationEvent,
+      recordMciTag,
       activePatientId,
       activeEncounterId,
       activePatient,
