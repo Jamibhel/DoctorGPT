@@ -44,7 +44,9 @@ export type UserRole =
   | 'NURSE' 
   | 'PHARMACIST' 
   | 'RADIOLOGIST' 
-  | 'HOSPITAL_ADMINISTRATOR';
+  | 'HOSPITAL_ADMINISTRATOR'
+  | 'FACILITY_ADMIN'
+  | 'CLINICAL_STAFF';
 
 export type Permission = 
   | 'patients:read'
@@ -93,6 +95,8 @@ export interface StaffMember {
   npi?: string;
   licenseNumber?: string;
   pagerNumber?: string;
+  email?: string;
+  password?: string;
   onCall: boolean;
   activeShift: 'DAY' | 'NIGHT' | 'SWING';
   permissions?: Permission[];

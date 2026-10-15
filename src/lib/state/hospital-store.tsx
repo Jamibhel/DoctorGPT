@@ -113,7 +113,11 @@ interface HospitalContextType {
   }) => void;
 
   // Patient Registry & EMPI
-  registerPatient: (data: Omit<Patient, 'id' | 'facilityId' | 'mrn' | 'createdAt' | 'updatedAt'>) => Patient;
+  registerPatient: (data: Omit<Patient, 'id' | 'facilityId' | 'mrn' | 'createdAt' | 'updatedAt'> & {
+    initialEncounterType?: 'INPATIENT' | 'EMERGENCY' | 'OUTPATIENT';
+    assignedBedId?: string;
+    presentingComplaint?: string;
+  }) => Patient;
   updatePatientDemographics: (patientId: string, updates: Partial<Patient>) => void;
   updatePatientAllergy: (allergy: PatientAllergy) => void;
   searchPatientsGlobal: (query: string) => { patient: Patient; facility: HealthcareFacility }[];
@@ -141,6 +145,27 @@ interface HospitalContextType {
   updateFacilityConfig: (updates: Partial<HealthcareFacility>) => void;
   createDepartment: (dept: Omit<HospitalDepartment, 'facilityId'>) => void;
   createBed: (bed: Omit<HospitalBed, 'facilityId'>) => void;
+  registerFacility: (
+    data: {
+      name: string;
+      code: string;
+      type: HealthcareFacility['type'];
+      mrnPrefix: string;
+      address: string;
+      phone: string;
+      email: string;
+      totalBedCapacity?: number;
+      departments?: { name: string; type: HospitalDepartment['type']; bedCount?: number }[];
+    },
+    adminUser: {
+      name: string;
+      email: string;
+      title?: string;
+      password?: string;
+    }
+  ) => { facility: HealthcareFacility; adminStaff: StaffMember };
+  createStaffMember: (data: Omit<StaffMember, 'id' | 'facilityId'>) => StaffMember;
+  resetAllDataToDefaults: () => void;
 
   // Emergency Management & Resuscitation
   traumaBays: TraumaBay[];
@@ -168,7 +193,7 @@ const HospitalContext = createContext<HospitalContextType | null>(null);
 
 export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // 1. Facilities
-  const [facilities] = useState<HealthcareFacility[]>(() => tenantRepository.listFacilities());
+  const [facilities, setFacilities] = useState<HealthcareFacility[]>(() => tenantRepository.listFacilities());
   const [activeFacilityId, setActiveFacilityId] = useState<string>("fac-st-jude");
   const activeFacility = facilities.find((f) => f.id === activeFacilityId) || facilities[0];
 
@@ -588,7 +613,11 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     }
   };
 
-  const registerPatient = (data: Omit<Patient, 'id' | 'facilityId' | 'mrn' | 'createdAt' | 'updatedAt'>): Patient => {
+  const registerPatient = (data: Omit<Patient, 'id' | 'facilityId' | 'mrn' | 'createdAt' | 'updatedAt'> & {
+    initialEncounterType?: 'INPATIENT' | 'EMERGENCY' | 'OUTPATIENT';
+    assignedBedId?: string;
+    presentingComplaint?: string;
+  }): Patient => {
     const created = tenantRepository.registerPatient(
       activeFacilityId,
       data,
@@ -596,11 +625,28 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       currentStaff.role
     );
     const updatedPatients = tenantRepository.getPatients(activeFacilityId);
+    const updatedEncounters = tenantRepository.getEncounters(activeFacilityId);
+    const updatedBeds = tenantRepository.getBeds(activeFacilityId);
     setPatients(updatedPatients);
+    setEncounters(updatedEncounters);
+    setBeds(updatedBeds);
     setActivePatientId(created.id);
+
+    const activeEnc = updatedEncounters.find(e => e.patientId === created.id && e.status === 'ACTIVE');
+    if (activeEnc) {
+      setActiveEncounterId(activeEnc.id);
+    }
 
     const audits = tenantRepository.getAuditLogs(activeFacilityId);
     setAuditLogs(audits);
+
+    emitClinicalEvent(
+      'PATIENT_ADMITTED',
+      `Patient Intake Complete: ${created.lastName}, ${created.firstName}`,
+      `MRN ${created.mrn} registered to ${activeFacility.name}. Encounter: ${activeEnc?.id || 'Active'}`,
+      created.id,
+      activeEnc?.id
+    );
 
     return created;
   };
@@ -1095,6 +1141,51 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     return updated;
   };
 
+  const registerFacility = (
+    data: {
+      name: string;
+      code: string;
+      type: HealthcareFacility['type'];
+      mrnPrefix: string;
+      address: string;
+      phone: string;
+      email: string;
+      totalBedCapacity?: number;
+      departments?: { name: string; type: HospitalDepartment['type']; bedCount?: number }[];
+    },
+    adminUser: {
+      name: string;
+      email: string;
+      title?: string;
+      password?: string;
+    }
+  ) => {
+    const res = tenantRepository.registerFacility(data, adminUser);
+    const updatedFacilities = tenantRepository.listFacilities();
+    setFacilities(updatedFacilities);
+    switchFacility(res.facility.id);
+    return res;
+  };
+
+  const createStaffMember = (data: Omit<StaffMember, 'id' | 'facilityId'>) => {
+    const newStaff = tenantRepository.createStaffMember(
+      activeFacilityId,
+      data,
+      currentStaff.name,
+      currentStaff.role
+    );
+    setStaff(tenantRepository.getStaff(activeFacilityId));
+    setAuditLogs(tenantRepository.getAuditLogs(activeFacilityId));
+    return newStaff;
+  };
+
+  const resetAllDataToDefaults = () => {
+    tenantRepository.resetToDefaults();
+    const updatedFacilities = tenantRepository.listFacilities();
+    setFacilities(updatedFacilities);
+    switchFacility(updatedFacilities[0]?.id || "fac-st-jude");
+  };
+
   return (
     <HospitalContext.Provider value={{
       facilities,
@@ -1158,6 +1249,9 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       updateFacilityConfig,
       createDepartment,
       createBed,
+      registerFacility,
+      createStaffMember,
+      resetAllDataToDefaults,
       triggerEmergencyCode,
       acknowledgeEmergencyCode,
       resolveEmergencyCode

@@ -1,5 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
+import { SessionProvider } from "@/lib/auth/session-context";
+import { PlatformProvider } from "@/lib/platform/platform-store";
 
 export const metadata: Metadata = {
   title: "BJI MediSupport — Connected Healthcare Platform",
@@ -39,7 +41,9 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-title" content="BJI MediSupport" />
       </head>
       <body className="h-full bg-bji-slate-50 antialiased text-bji-slate-900 selection:bg-bji-green-100 selection:text-bji-green-900">
-        {children}
+        <SessionProvider>
+          <PlatformProvider>{children}</PlatformProvider>
+        </SessionProvider>
       </body>
     </html>
   );

@@ -13,6 +13,7 @@ import {
 } from "@/components/ui";
 import { UnifiedAuthModal } from "@/components/auth";
 import { KeyboardShortcutsModal } from "./KeyboardShortcutsModal";
+import { RegisterFacilityModal } from "@/components/facility/RegisterFacilityModal";
 import { 
   Activity, 
   AlertTriangle, 
@@ -49,7 +50,8 @@ import {
   Ambulance,
   Scissors,
   Zap,
-  Database
+  Database,
+  Plus
 } from "lucide-react";
 
 export type DeviceMode = "AUTO" | "DESKTOP" | "TABLET" | "PHONE";
@@ -67,7 +69,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   onSelectView,
   onOpenDesignSystem,
 }) => {
-  const { currentUser, secondsRemaining, lockSession, switchUser, availableUsers } = useSession();
+  const { currentUser, secondsRemaining, lockSession, switchUser, availableUsers, secureLogout } = useSession();
   const { isInstallable, isStandalone, isOnline, promptInstall } = usePWA();
   const { 
     facilities,
@@ -96,6 +98,7 @@ export const AppShell: React.FC<AppShellProps> = ({
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isPatientSearchOpen, setIsPatientSearchOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
+  const [isRegisterFacilityOpen, setIsRegisterFacilityOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
@@ -289,6 +292,15 @@ export const AppShell: React.FC<AppShellProps> = ({
                 </option>
               ))}
             </select>
+            <button
+              type="button"
+              onClick={() => setIsRegisterFacilityOpen(true)}
+              className="h-6 px-1.5 text-[10px] font-bold text-bji-green-700 bg-bji-green-50 hover:bg-bji-green-100 border border-bji-green-300 rounded-bji-xs flex items-center gap-1 transition-colors"
+              title="Onboard New Healthcare Facility"
+            >
+              <Plus className="w-3 h-3 text-bji-green-600" />
+              <span>New Facility</span>
+            </button>
           </div>
 
           {/* Online / Standalone Badge */}
@@ -522,12 +534,27 @@ export const AppShell: React.FC<AppShellProps> = ({
                       setIsUserMenuOpen(false);
                       setIsAuthModalOpen(true);
                     }}
-                    className="text-[11px]"
+                    className="text-[10px] px-1.5"
                   >
-                    Auth & Portals
+                    Portals
                   </Button>
-                  <Button variant="danger" size="xs" onClick={lockSession} leftIcon={<Lock className="w-3 h-3" />}>
+                  <Button 
+                    variant="outline" 
+                    size="xs" 
+                    onClick={lockSession} 
+                    leftIcon={<Lock className="w-3 h-3 text-bji-amber-600" />}
+                    className="text-[10px] px-1.5"
+                  >
                     Lock
+                  </Button>
+                  <Button 
+                    variant="danger" 
+                    size="xs" 
+                    onClick={secureLogout} 
+                    leftIcon={<LogOut className="w-3 h-3" />}
+                    className="text-[10px] px-1.5"
+                  >
+                    Sign Out
                   </Button>
                 </div>
               </div>
@@ -934,6 +961,12 @@ export const AppShell: React.FC<AppShellProps> = ({
       <KeyboardShortcutsModal
         isOpen={isShortcutsOpen}
         onClose={() => setIsShortcutsOpen(false)}
+      />
+
+      {/* Multi-Tenant Facility Onboarding Modal */}
+      <RegisterFacilityModal
+        isOpen={isRegisterFacilityOpen}
+        onClose={() => setIsRegisterFacilityOpen(false)}
       />
     </div>
   );

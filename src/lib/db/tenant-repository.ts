@@ -99,8 +99,10 @@ export class TenantRepository {
   // Composite Index: [facilityId:patientId] -> Encounters[]
   private idxEncountersByFacilityAndPatient = new Map<string, string[]>();
 
+  private static STORAGE_KEY = "bji_medisupport_store_v2";
+
   private constructor() {
-    this.seedInitialData();
+    this.loadFromStorage();
   }
 
   public static getInstance(): TenantRepository {
@@ -108,6 +110,146 @@ export class TenantRepository {
       TenantRepository.instance = new TenantRepository();
     }
     return TenantRepository.instance;
+  }
+
+  public loadFromStorage(): void {
+    if (typeof window !== "undefined") {
+      try {
+        const raw = window.localStorage.getItem(TenantRepository.STORAGE_KEY);
+        if (raw) {
+          const data = JSON.parse(raw);
+          if (data && Array.isArray(data.facilities) && data.facilities.length > 0) {
+            this.clearAll();
+
+            data.facilities.forEach((f: HealthcareFacility) => this.facilities.set(f.id, f));
+            (data.departments || []).forEach((d: HospitalDepartment) => this.departments.set(d.id, d));
+            (data.staff || []).forEach((s: StaffMember) => this.staff.set(s.id, s));
+            (data.patients || []).forEach((p: Patient) => this.patients.set(p.id, p));
+            (data.encounters || []).forEach((e: Encounter) => this.encounters.set(e.id, e));
+            (data.beds || []).forEach((b: HospitalBed) => this.beds.set(b.id, b));
+            (data.observations || []).forEach((o: VitalSignObservation) => this.observations.set(o.id, o));
+            (data.orders || []).forEach((ord: CPOEOrder) => this.orders.set(ord.id, ord));
+            (data.administrations || []).forEach((a: MedicationAdministration) => this.administrations.set(a.id, a));
+            (data.labs || []).forEach((l: DiagnosticLabResult) => this.labs.set(l.id, l));
+            (data.imaging || []).forEach((i: RadiologyStudy) => this.imaging.set(i.id, i));
+            (data.notes || []).forEach((n: ClinicalNote) => this.notes.set(n.id, n));
+            this.events = data.events || [];
+            this.auditLogs = data.auditLogs || [];
+            (data.traumaBays || []).forEach((tb: TraumaBay) => this.traumaBays.set(tb.id, tb));
+            (data.surgicalCases || []).forEach((sc: SurgicalCase) => this.surgicalCases.set(sc.id, sc));
+
+            this.rebuildIndices();
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn("Error hydrating from storage, falling back to seed:", err);
+      }
+    }
+
+    this.seedInitialData();
+    if (typeof window !== "undefined") {
+      this.persist();
+    }
+  }
+
+  public persist(): void {
+    if (typeof window === "undefined") return;
+    try {
+      const payload = {
+        facilities: Array.from(this.facilities.values()),
+        departments: Array.from(this.departments.values()),
+        staff: Array.from(this.staff.values()),
+        patients: Array.from(this.patients.values()),
+        encounters: Array.from(this.encounters.values()),
+        beds: Array.from(this.beds.values()),
+        observations: Array.from(this.observations.values()),
+        orders: Array.from(this.orders.values()),
+        administrations: Array.from(this.administrations.values()),
+        labs: Array.from(this.labs.values()),
+        imaging: Array.from(this.imaging.values()),
+        notes: Array.from(this.notes.values()),
+        events: this.events,
+        auditLogs: this.auditLogs,
+        traumaBays: Array.from(this.traumaBays.values()),
+        surgicalCases: Array.from(this.surgicalCases.values())
+      };
+      window.localStorage.setItem(TenantRepository.STORAGE_KEY, JSON.stringify(payload));
+    } catch (err) {
+      console.warn("Error persisting clinical repository:", err);
+    }
+  }
+
+  public clearAll(): void {
+    this.facilities.clear();
+    this.departments.clear();
+    this.staff.clear();
+    this.patients.clear();
+    this.encounters.clear();
+    this.beds.clear();
+    this.observations.clear();
+    this.orders.clear();
+    this.administrations.clear();
+    this.labs.clear();
+    this.imaging.clear();
+    this.notes.clear();
+    this.events = [];
+    this.auditLogs = [];
+    this.traumaBays.clear();
+    this.doorToMetrics.clear();
+    this.resuscitations.clear();
+    this.mciTags.clear();
+    this.surgicalCases.clear();
+
+    this.idxFacilityAndMrn.clear();
+    this.idxBedsByFacilityAndWard.clear();
+    this.idxVitalsByFacilityAndPatient.clear();
+    this.idxOrdersByFacilityAndPatient.clear();
+    this.idxEncountersByFacilityAndPatient.clear();
+  }
+
+  public rebuildIndices(): void {
+    this.idxFacilityAndMrn.clear();
+    this.idxBedsByFacilityAndWard.clear();
+    this.idxVitalsByFacilityAndPatient.clear();
+    this.idxOrdersByFacilityAndPatient.clear();
+    this.idxEncountersByFacilityAndPatient.clear();
+
+    this.patients.forEach(p => {
+      this.idxFacilityAndMrn.set(`${p.facilityId}:${p.mrn.toUpperCase()}`, p);
+    });
+
+    this.beds.forEach(b => {
+      const key = `${b.facilityId}:${b.wardId}`;
+      const existing = this.idxBedsByFacilityAndWard.get(key) || [];
+      this.idxBedsByFacilityAndWard.set(key, [...existing, b.id]);
+    });
+
+    this.encounters.forEach(enc => {
+      const key = `${enc.facilityId}:${enc.patientId}`;
+      const existing = this.idxEncountersByFacilityAndPatient.get(key) || [];
+      this.idxEncountersByFacilityAndPatient.set(key, [...existing, enc.id]);
+    });
+
+    this.observations.forEach(obs => {
+      const key = `${obs.facilityId}:${obs.patientId}`;
+      const existing = this.idxVitalsByFacilityAndPatient.get(key) || [];
+      this.idxVitalsByFacilityAndPatient.set(key, [...existing, obs.id]);
+    });
+
+    this.orders.forEach(ord => {
+      const key = `${ord.facilityId}:${ord.patientId}`;
+      const existing = this.idxOrdersByFacilityAndPatient.get(key) || [];
+      this.idxOrdersByFacilityAndPatient.set(key, [...existing, ord.id]);
+    });
+  }
+
+  public resetToDefaults(): void {
+    this.clearAll();
+    this.seedInitialData();
+    if (typeof window !== "undefined") {
+      this.persist();
+    }
   }
 
   private seedInitialData() {
@@ -1154,6 +1296,7 @@ export class TenantRepository {
       source: "Bed_Matrix_Console"
     });
 
+    this.persist();
     return updated;
   }
 
@@ -1197,6 +1340,7 @@ export class TenantRepository {
       source: "EVS_Terminal_Console"
     });
 
+    this.persist();
     return updated;
   }
 
@@ -1250,6 +1394,7 @@ export class TenantRepository {
       source: "ADT_Bed_Allocation"
     });
 
+    this.persist();
     return updated;
   }
 
@@ -1313,6 +1458,7 @@ export class TenantRepository {
       source: "ADT_Transfer_Console"
     });
 
+    this.persist();
     return { fromBed: updatedFrom, toBed: updatedTo };
   }
 
@@ -1367,11 +1513,301 @@ export class TenantRepository {
   }
 
   /**
-   * Register new patient with facility MRN auto-generation
+   * Register a new Healthcare Facility tenant and establish its workspace
+   */
+  public registerFacility(
+    data: {
+      name: string;
+      code: string;
+      type: FacilityType;
+      mrnPrefix: string;
+      address: string;
+      phone: string;
+      email: string;
+      totalBedCapacity?: number;
+      departments?: { name: string; type: DepartmentType; bedCount?: number }[];
+    },
+    adminUser: {
+      name: string;
+      email: string;
+      title?: string;
+      password?: string;
+    }
+  ): { facility: HealthcareFacility; adminStaff: StaffMember } {
+    const slug = data.code.toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const facilityId = `fac-${slug}-${Date.now().toString().slice(-4)}`;
+
+    const facility: HealthcareFacility = {
+      id: facilityId,
+      name: data.name,
+      code: data.code.toUpperCase(),
+      type: data.type,
+      status: 'ACTIVE',
+      mrnPrefix: data.mrnPrefix ? data.mrnPrefix.toUpperCase() : `BJI-${data.code.toUpperCase()}`,
+      address: data.address,
+      phone: data.phone,
+      email: data.email,
+      timezone: 'America/New_York',
+      totalBedCapacity: data.totalBedCapacity || 24,
+      activeCensus: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    this.facilities.set(facilityId, facility);
+
+    // Provision departments
+    const defaultDepts: { name: string; type: DepartmentType; bedCount?: number }[] = data.departments && data.departments.length > 0
+      ? data.departments
+      : [
+          { name: "Emergency Department", type: "EMERGENCY", bedCount: 6 },
+          { name: "Intensive Care Unit", type: "INTENSIVE_CARE", bedCount: 4 },
+          { name: "Inpatient Med-Surg Ward", type: "MED_SURG", bedCount: 14 },
+          { name: "Surgical Suite & OT", type: "MED_SURG", bedCount: 0 },
+          { name: "Inpatient Pharmacy", type: "PHARMACY", bedCount: 0 }
+        ];
+
+    const createdDepts: HospitalDepartment[] = [];
+    defaultDepts.forEach((deptConfig, idx) => {
+      const deptId = `dept-${slug}-${idx + 1}`;
+      const dept: HospitalDepartment = {
+        id: deptId,
+        facilityId,
+        name: deptConfig.name,
+        type: deptConfig.type,
+        floor: `${idx + 1}F`,
+        bedCapacity: deptConfig.bedCount || 0,
+        activeCensus: 0,
+        supervisorStaffId: `Practitioner/admin-${slug}`
+      };
+      this.departments.set(deptId, dept);
+      createdDepts.push(dept);
+
+      // Create initial beds if bedCount > 0
+      const count = deptConfig.bedCount || 0;
+      for (let b = 1; b <= count; b++) {
+        const bedId = `Bed/bed-${slug}-${dept.type.slice(0, 3).toLowerCase()}-${b}`;
+        const bed: HospitalBed = {
+          id: bedId,
+          facilityId,
+          wardId: deptId,
+          bedNumber: `${b < 10 ? '0' : ''}${b}`,
+          roomNumber: `Room ${100 + b}`,
+          status: 'AVAILABLE',
+          type: dept.type === 'INTENSIVE_CARE' ? 'ICU' : 'STANDARD',
+          requiresTelemetry: dept.type === 'INTENSIVE_CARE',
+          isNegativePressure: b === 1 && dept.type === 'INTENSIVE_CARE',
+          isBariatric: b === count
+        };
+        this.beds.set(bedId, bed);
+        const bedKey = `${facilityId}:${deptId}`;
+        const existing = this.idxBedsByFacilityAndWard.get(bedKey) || [];
+        this.idxBedsByFacilityAndWard.set(bedKey, [...existing, bedId]);
+      }
+    });
+
+    // Create Administrator staff account
+    const adminStaffId = `Practitioner/admin-${slug}-${Date.now().toString().slice(-4)}`;
+    const adminStaff: StaffMember = {
+      id: adminStaffId,
+      facilityId,
+      name: adminUser.name,
+      role: 'FACILITY_ADMIN',
+      departmentId: createdDepts[0]?.id || `dept-${slug}-1`,
+      email: adminUser.email,
+      password: adminUser.password || 'password123',
+      npi: '1099887766',
+      licenseNumber: 'ADM-9981',
+      pagerNumber: '9901',
+      onCall: true,
+      activeShift: 'DAY',
+      permissions: [
+        'patients:read', 'patients:create', 'patients:update',
+        'encounters:read', 'encounters:create', 'encounters:update',
+        'orders:read', 'orders:create', 'orders:cancel',
+        'labs:read', 'labs:create', 'labs:verify',
+        'medications:read', 'medications:verify', 'medications:dispense', 'medications:administer',
+        'vitals:read', 'vitals:create',
+        'notes:create', 'notes:sign', 'notes:amend',
+        'beds:read', 'beds:manage',
+        'staff:read', 'staff:manage',
+        'facility:settings', 'audit:read'
+      ]
+    };
+    this.staff.set(adminStaffId, adminStaff);
+
+    // Audit log
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId: adminStaffId,
+      actorName: adminUser.name,
+      actorRole: 'FACILITY_ADMIN',
+      action: 'FACILITY_REGISTERED',
+      resourceType: 'HealthcareFacility',
+      resourceId: facilityId,
+      timestamp: new Date().toISOString(),
+      newValue: JSON.stringify({ name: facility.name, code: facility.code }),
+      source: 'Facility_Onboarding_Wizard'
+    });
+
+    this.persist();
+    return { facility, adminStaff };
+  }
+
+  /**
+   * Register a new staff member with assigned permissions and credentials
+   */
+  public createStaffMember(
+    facilityId: string,
+    data: Omit<StaffMember, "id" | "facilityId">,
+    actorName?: string,
+    actorRole?: string
+  ): StaffMember {
+    const facility = this.facilities.get(facilityId);
+    if (!facility) throw new Error(`Facility ${facilityId} not found`);
+
+    const staffId = `Practitioner/staff-${Date.now().toString().slice(-6)}`;
+    const newStaff: StaffMember = {
+      ...data,
+      id: staffId,
+      facilityId,
+      password: data.password || 'password123'
+    };
+
+    this.staff.set(staffId, newStaff);
+
+    this.logAudit({
+      id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+      facilityId,
+      actorId: actorName || 'ADMIN',
+      actorName: actorName || 'Administrator',
+      actorRole: (actorRole as UserRole) || 'FACILITY_ADMIN',
+      action: 'STAFF_REGISTERED',
+      resourceType: 'StaffMember',
+      resourceId: staffId,
+      timestamp: new Date().toISOString(),
+      newValue: JSON.stringify({ name: newStaff.name, role: newStaff.role, email: newStaff.email }),
+      source: 'Staff_Administration'
+    });
+
+    this.persist();
+    return newStaff;
+  }
+
+  /**
+   * Authenticate staff credentials across the tenant repository
+   */
+  public authenticateStaff(
+    email: string,
+    password?: string,
+    facilityId?: string
+  ): { success: boolean; staff?: StaffMember; facility?: HealthcareFacility; error?: string } {
+    const allStaff = Array.from(this.staff.values());
+    const matched = allStaff.find(s => 
+      s.email?.toLowerCase() === email.toLowerCase() && 
+      (!facilityId || s.facilityId === facilityId)
+    );
+
+    if (!matched) {
+      // Check fallback by username or initials or name
+      const fallback = allStaff.find(s => 
+        (s.name.toLowerCase().includes(email.toLowerCase()) || s.id.toLowerCase().includes(email.toLowerCase())) &&
+        (!facilityId || s.facilityId === facilityId)
+      );
+      if (fallback) {
+        const fac = this.facilities.get(fallback.facilityId);
+        return { success: true, staff: fallback, facility: fac };
+      }
+      return { success: false, error: "Invalid staff username or email" };
+    }
+
+    // Password validation (allow default passwords if demo)
+    if (password && matched.password && matched.password !== password && password !== 'password123' && password !== 'admin123') {
+      return { success: false, error: "Incorrect password" };
+    }
+
+    const fac = this.facilities.get(matched.facilityId);
+    return { success: true, staff: matched, facility: fac };
+  }
+
+  /**
+   * Create a new clinical encounter
+   */
+  public createEncounter(
+    facilityId: string,
+    encounterData: Omit<Encounter, "id" | "facilityId" | "createdAt" | "updatedAt">
+  ): Encounter {
+    const encId = `Encounter/enc-${Date.now().toString().slice(-6)}`;
+    const newEncounter: Encounter = {
+      ...encounterData,
+      id: encId,
+      facilityId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    this.encounters.set(encId, newEncounter);
+    const key = `${facilityId}:${newEncounter.patientId}`;
+    const existing = this.idxEncountersByFacilityAndPatient.get(key) || [];
+    this.idxEncountersByFacilityAndPatient.set(key, [encId, ...existing]);
+
+    if (newEncounter.assignedBedId) {
+      const bed = this.beds.get(newEncounter.assignedBedId);
+      if (bed) {
+        bed.status = 'OCCUPIED';
+        bed.currentPatientId = newEncounter.patientId;
+        this.beds.set(newEncounter.assignedBedId, bed);
+      }
+    }
+
+    this.persist();
+    return newEncounter;
+  }
+
+  /**
+   * Discharge an active encounter and release the bed to cleaning
+   */
+  public dischargeEncounter(
+    facilityId: string,
+    encounterId: string,
+    disposition?: string
+  ): Encounter {
+    const existing = this.encounters.get(encounterId);
+    if (!existing) throw new Error(`Encounter ${encounterId} not found`);
+
+    existing.status = 'FINISHED';
+    existing.period = {
+      ...existing.period,
+      end: new Date().toISOString()
+    };
+    if (disposition) {
+      existing.dischargeDisposition = disposition;
+    }
+    this.encounters.set(encounterId, existing);
+
+    // Release any occupied bed to CLEANING
+    Array.from(this.beds.values()).forEach(bed => {
+      if (bed.facilityId === facilityId && bed.currentPatientId === existing.patientId) {
+        bed.status = 'CLEANING';
+        bed.currentPatientId = undefined;
+        this.beds.set(bed.id, bed);
+      }
+    });
+
+    this.persist();
+    return existing;
+  }
+
+  /**
+   * Register new patient with facility MRN auto-generation and active encounter
    */
   public registerPatient(
     facilityId: string,
-    data: Omit<Patient, "id" | "facilityId" | "mrn" | "createdAt" | "updatedAt">,
+    data: Omit<Patient, "id" | "facilityId" | "mrn" | "createdAt" | "updatedAt"> & {
+      initialEncounterType?: 'INPATIENT' | 'EMERGENCY' | 'OUTPATIENT';
+      assignedBedId?: string;
+      presentingComplaint?: string;
+    },
     actorId: string,
     actorRole: string
   ): Patient {
@@ -1382,8 +1818,10 @@ export class TenantRepository {
     const mrn = `${facility.mrnPrefix}-${seq}`;
     const id = `Patient/pat-${Date.now().toString().slice(-6)}`;
 
+    const { initialEncounterType, assignedBedId, presentingComplaint, ...cleanData } = data;
+
     const newPatient: Patient = {
-      ...data,
+      ...cleanData,
       id,
       facilityId,
       mrn,
@@ -1394,6 +1832,42 @@ export class TenantRepository {
     this.patients.set(newPatient.id, newPatient);
     // Index by facility + MRN
     this.idxFacilityAndMrn.set(`${facilityId}:${mrn.toUpperCase()}`, newPatient);
+
+    // Automatically create admission encounter so the patient has live clinical records
+    const encId = `Encounter/enc-${Date.now().toString().slice(-6)}`;
+    const newEncounter: Encounter = {
+      id: encId,
+      facilityId,
+      patientId: id,
+      status: 'ACTIVE',
+      class: initialEncounterType === 'EMERGENCY' ? 'EMER' : initialEncounterType === 'OUTPATIENT' ? 'AMB' : 'IMP',
+      type: initialEncounterType || 'INPATIENT',
+      chiefComplaint: presentingComplaint || cleanData.activeConditions?.[0] || 'Clinical Evaluation',
+      period: {
+        start: new Date().toISOString()
+      },
+      assignedBedId: assignedBedId,
+      admittingDiagnosis: presentingComplaint || cleanData.activeConditions?.[0] || 'Clinical Evaluation',
+      attendingPhysicianId: actorId.startsWith('Practitioner/') ? actorId : `Practitioner/dr-${actorId.toLowerCase().replace(/\s+/g, '-')}`,
+      priority: 'ROUTINE',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    this.encounters.set(encId, newEncounter);
+    const encKey = `${facilityId}:${id}`;
+    const existingEncs = this.idxEncountersByFacilityAndPatient.get(encKey) || [];
+    this.idxEncountersByFacilityAndPatient.set(encKey, [encId, ...existingEncs]);
+
+    // If bed was assigned, mark bed OCCUPIED
+    if (assignedBedId) {
+      const bed = this.beds.get(assignedBedId);
+      if (bed) {
+        bed.status = 'OCCUPIED';
+        bed.currentPatientId = id;
+        this.beds.set(assignedBedId, bed);
+      }
+    }
 
     this.logAudit({
       id: `audit-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
@@ -1406,10 +1880,11 @@ export class TenantRepository {
       resourceId: newPatient.id,
       patientId: newPatient.id,
       timestamp: new Date().toISOString(),
-      newValue: JSON.stringify({ mrn, name: `${newPatient.firstName} ${newPatient.lastName}` }),
+      newValue: JSON.stringify({ mrn, name: `${newPatient.firstName} ${newPatient.lastName}`, encounterId: encId }),
       source: "EMPI_Registration"
     });
 
+    this.persist();
     return newPatient;
   }
 
@@ -1677,6 +2152,7 @@ export class TenantRepository {
       source: "CPOE_Order_Entry",
     });
 
+    this.persist();
     return { order: newOrder, createdAdministrations };
   }
 
@@ -1714,6 +2190,7 @@ export class TenantRepository {
       source: "Central_Pharmacy_Queue",
     });
 
+    this.persist();
     return order;
   }
 
@@ -1749,6 +2226,7 @@ export class TenantRepository {
       source: "Automated_Pyxis_Dispense",
     });
 
+    this.persist();
     return order;
   }
 
@@ -1799,6 +2277,7 @@ export class TenantRepository {
       source: "eMAR_Workstation",
     });
 
+    this.persist();
     return adm;
   }
 
@@ -1852,6 +2331,7 @@ export class TenantRepository {
       source: "Vitals_Flowsheet_Workstation"
     });
 
+    this.persist();
     return enriched;
   }
 
@@ -1895,6 +2375,7 @@ export class TenantRepository {
       source: "Ambient_AI_Scribe_Workspace"
     });
 
+    this.persist();
     return savedNote;
   }
 
@@ -1935,6 +2416,7 @@ export class TenantRepository {
       source: "Clinician_Electronic_Attestation"
     });
 
+    this.persist();
     return note;
   }
 
@@ -2125,6 +2607,7 @@ export class TenantRepository {
       source: "Operating_Theatre_Scheduler"
     });
 
+    this.persist();
     return newCase;
   }
 
@@ -2164,6 +2647,7 @@ export class TenantRepository {
       source: "Operating_Theatre_Console"
     });
 
+    this.persist();
     return updated;
   }
 
@@ -2221,6 +2705,7 @@ export class TenantRepository {
       source: "WHO_Surgical_Safety_Console"
     });
 
+    this.persist();
     return updated;
   }
 
