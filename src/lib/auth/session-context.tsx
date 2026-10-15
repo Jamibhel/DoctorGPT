@@ -126,14 +126,34 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   const [secondsRemaining, setSecondsRemaining] = useState(inactivityLimitSeconds);
 
   // Hydrate persistent session from localStorage on mount
+  const persistSession = useCallback((nextSessionType: SessionType, nextUser?: SessionUser, nextPatient?: Patient | null) => {
+    if (typeof window === "undefined") return;
+
+    const payload = nextSessionType === "PATIENT"
+      ? { sessionType: "PATIENT", patientUser: nextPatient ?? null }
+      : { sessionType: "STAFF", currentUser: nextUser ?? currentUser };
+
+    localStorage.setItem("bji_medisupport_auth_session", JSON.stringify(payload));
+  }, [currentUser]);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
         const saved = localStorage.getItem("bji_medisupport_auth_session");
         if (saved) {
           const parsed = JSON.parse(saved);
-          if (parsed && parsed.id) {
-            setCurrentUser(parsed);
+          if (parsed?.sessionType === "PATIENT" && parsed.patientUser) {
+            setPatientUser(parsed.patientUser);
+            setCurrentUser(SEED_SESSION_USERS[0]);
+            setSessionType("PATIENT");
+            setIsAuthenticated(true);
+            setIsLocked(false);
+            return;
+          }
+
+          if (parsed?.sessionType === "STAFF" && parsed.currentUser) {
+            setCurrentUser(parsed.currentUser);
+            setSessionType("STAFF");
             setIsAuthenticated(true);
             setIsLocked(false);
           }
@@ -217,9 +237,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setSessionType("STAFF");
       setIsLocked(false);
       setSecondsRemaining(inactivityLimitSeconds);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("bji_medisupport_auth_session", JSON.stringify(switched));
-      }
+      persistSession("STAFF", switched, null);
       logAuthAudit(
         switched.facilityId,
         switched.id,
@@ -265,9 +283,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setSessionType("STAFF");
       setIsLocked(false);
       setSecondsRemaining(inactivityLimitSeconds);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("bji_medisupport_auth_session", JSON.stringify(target));
-      }
+      persistSession("STAFF", target, null);
       logAuthAudit(
         target.facilityId,
         target.id,
@@ -287,8 +303,10 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         ? facilityPatients.find((p) => p.id === patientId)
         : facilityPatients[0];
       setPatientUser(targetPatient || null);
+      persistSession("PATIENT", currentUser, targetPatient || null);
     } else {
       setPatientUser(null);
+      persistSession("STAFF", currentUser, null);
     }
   };
 
@@ -316,9 +334,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setIsAuthenticated(true);
       setIsLocked(false);
       setSecondsRemaining(inactivityLimitSeconds);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("bji_medisupport_auth_session", JSON.stringify(sessionUser));
-      }
+      persistSession("STAFF", sessionUser, null);
       logAuthAudit(facilityId, s.id, s.name, s.role, "LOGIN_SUCCESS", "Staff Credentials Verified");
       return true;
     }
@@ -357,9 +373,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setIsAuthenticated(true);
       setIsLocked(false);
       setSecondsRemaining(inactivityLimitSeconds);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("bji_medisupport_auth_session", JSON.stringify(user));
-      }
+      persistSession("STAFF", user, null);
       logAuthAudit(facilityId, user.id, user.name, user.role, "LOGIN_SUCCESS", "Invited Staff Credentials Verified");
       return true;
     }
@@ -375,9 +389,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setIsAuthenticated(true);
       setIsLocked(false);
       setSecondsRemaining(inactivityLimitSeconds);
-      if (typeof window !== "undefined") {
-        localStorage.setItem("bji_medisupport_auth_session", JSON.stringify(user));
-      }
+      persistSession("STAFF", user, null);
       logAuthAudit(facilityId, matched.id, matched.name, matched.role, "LOGIN_SUCCESS", "Staff Credentials Verified");
       return true;
     }
@@ -393,6 +405,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       setIsAuthenticated(true);
       setIsLocked(false);
       setSecondsRemaining(inactivityLimitSeconds);
+      persistSession("PATIENT", currentUser, patient);
       logAuthAudit(facilityId, patient.id, `${patient.lastName}, ${patient.firstName}`, "PHYSICIAN", "PATIENT_LOGIN_SUCCESS", "Patient Portal Authentication");
       return true;
     }
@@ -412,6 +425,8 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (typeof window !== "undefined") {
       localStorage.removeItem("bji_medisupport_auth_session");
     }
+    setPatientUser(null);
+    setSessionType("STAFF");
     setIsAuthenticated(false);
     setIsLocked(true);
   };

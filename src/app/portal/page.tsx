@@ -1,27 +1,59 @@
 "use client";
 
+import Link from "next/link";
+import { useSession } from "@/lib/auth/session-context";
 import { usePlatform } from "@/lib/platform/platform-store";
+import { tenantRepository } from "@/lib/db/tenant-repository";
 
 export default function PatientPortalPage() {
-  const { appointments, patients, activeFacility } = usePlatform();
-  const portalPatient = patients[0];
+  const { appointments, activeFacility } = usePlatform();
+  const { patientUser, sessionType, secureLogout } = useSession();
+
+  if (sessionType !== "PATIENT" || !patientUser) {
+    return (
+      <main className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900">
+        <div className="mx-auto max-w-xl rounded-3xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">Patient portal access</p>
+          <h1 className="mt-3 text-3xl font-bold">Sign in to continue</h1>
+          <p className="mt-3 text-slate-600">Patient access is restricted to verified portal sessions for the selected facility.</p>
+          <div className="mt-6 flex justify-center gap-3">
+            <Link href="/" className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700">
+              Back to sign in
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
   const portalAppointments = appointments.filter(
-    (appointment) => appointment.facilityId === activeFacility?.id && appointment.patientName === portalPatient?.name
+    (appointment) => appointment.facilityId === patientUser.facilityId && appointment.patientName === `${patientUser.firstName} ${patientUser.lastName}`
   );
+  const encounters = tenantRepository.getEncounters(patientUser.facilityId, patientUser.id);
+  const activeEncounter = encounters[0] ?? null;
 
   return (
     <main className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900">
       <div className="mx-auto max-w-6xl">
-        <div className="mb-8 flex items-center justify-between">
+        <div className="mb-8 flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-700">
               Patient portal
             </p>
-            <h1 className="mt-2 text-4xl font-bold">Welcome, {portalPatient?.name ?? "Patient"}</h1>
+            <h1 className="mt-2 text-4xl font-bold">Welcome, {patientUser.firstName} {patientUser.lastName}</h1>
           </div>
-          <button className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
-            Log out
-          </button>
+          <div className="flex items-center gap-3">
+            <Link href="/" className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100">
+              Home
+            </Link>
+            <button
+              type="button"
+              onClick={secureLogout}
+              className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
+            >
+              Log out
+            </button>
+          </div>
         </div>
 
         <div className="grid gap-5 md:grid-cols-3">
@@ -30,12 +62,12 @@ export default function PatientPortalPage() {
             <p className="mt-3 text-4xl font-bold">{portalAppointments.length}</p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-            <p className="text-sm text-slate-500">Care summary</p>
-            <p className="mt-3 text-2xl font-bold">Updated</p>
+            <p className="text-sm text-slate-500">Care status</p>
+            <p className="mt-3 text-2xl font-bold">{activeEncounter?.status ?? "No active encounter"}</p>
           </div>
           <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
             <p className="text-sm text-slate-500">Message center</p>
-            <p className="mt-3 text-2xl font-bold">1 alert</p>
+            <p className="mt-3 text-2xl font-bold">{portalAppointments.length > 0 ? "1 alert" : "No alerts"}</p>
           </div>
         </div>
 
@@ -68,15 +100,19 @@ export default function PatientPortalPage() {
             <div className="mt-5 space-y-3 text-sm text-slate-600">
               <div>
                 <div className="text-slate-500">Name</div>
-                <div className="font-medium text-slate-900">{portalPatient?.name}</div>
+                <div className="font-medium text-slate-900">{patientUser.firstName} {patientUser.lastName}</div>
+              </div>
+              <div>
+                <div className="text-slate-500">MRN</div>
+                <div className="font-medium text-slate-900">{patientUser.mrn}</div>
               </div>
               <div>
                 <div className="text-slate-500">DOB</div>
-                <div className="font-medium text-slate-900">{portalPatient?.dob}</div>
+                <div className="font-medium text-slate-900">{patientUser.dateOfBirth}</div>
               </div>
               <div>
                 <div className="text-slate-500">Preferred clinic</div>
-                <div className="font-medium text-slate-900">{activeFacility?.name}</div>
+                <div className="font-medium text-slate-900">{activeFacility?.name ?? "Facility"}</div>
               </div>
             </div>
           </aside>
