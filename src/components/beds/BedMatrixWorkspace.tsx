@@ -36,7 +36,6 @@ export const BedMatrixWorkspace: React.FC = () => {
     encounters,
     observations,
     setActivePatientId,
-    setActiveView,
     updateBedStatus,
     dischargePatient,
     currentStaff
@@ -446,7 +445,6 @@ export const BedMatrixWorkspace: React.FC = () => {
                                 <span 
                                   onClick={() => {
                                     setActivePatientId(occupant.id);
-                                    setActiveView('chart');
                                   }}
                                   className="font-bold text-slate-900 hover:text-blue-600 hover:underline cursor-pointer block truncate"
                                   title="Click to view Patient Chart"

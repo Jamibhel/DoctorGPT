@@ -71,7 +71,7 @@ export interface NavRailItemProps extends React.ButtonHTMLAttributes<HTMLButtonE
   label: string;
   isActive?: boolean;
   badge?: string | number;
-  badgeTone?: "info" | "critical" | "warning" | "neutral";
+  badgeTone?: "info" | "critical" | "warning" | "neutral" | "danger";
   collapsed?: boolean;
 }
 
@@ -90,6 +90,7 @@ export const NavRailItem: React.FC<NavRailItemProps> = ({
     info: "bg-bji-blue-100 text-bji-blue-900",
     warning: "bg-bji-amber-100 text-bji-amber-900",
     critical: "bg-bji-red-600 text-white font-bold",
+    danger: "bg-bji-red-600 text-white font-bold",
   };
 
   return (

@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { useSession } from "@/lib/auth/session-context";
+import { isFirebaseReady } from "@/lib/firebase/tenant-service";
 import { Button, Badge } from "@/components/ui";
 import { Lock, Shield, ArrowRight, UserCheck, AlertCircle } from "lucide-react";
 
@@ -9,24 +10,26 @@ export const SessionLockModal: React.FC = () => {
   const { currentUser, isLocked, unlockSession, switchUser, availableUsers } = useSession();
   const [pin, setPin] = useState("");
   const [error, setError] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSwitchingUser, setIsSwitchingUser] = useState(false);
+  const isFirebaseSession = isFirebaseReady() && !currentUser.pin;
 
   if (!isLocked) return null;
 
-  const handleUnlock = () => {
-    const success = unlockSession(pin);
-    if (!success) {
-      setError(true);
+  const handleUnlock = async (credential = pin) => {
+    setIsSubmitting(true);
+    try {
+      const success = await unlockSession(credential);
+      setError(!success);
       setPin("");
-    } else {
-      setError(false);
-      setPin("");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter") {
-      handleUnlock();
+      void handleUnlock();
     }
   };
 
@@ -36,14 +39,7 @@ export const SessionLockModal: React.FC = () => {
       setPin(nextPin);
       if (nextPin.length === 4) {
         // Automatic submit when 4 digits reached
-        const success = unlockSession(nextPin);
-        if (!success) {
-          setError(true);
-          setPin("");
-        } else {
-          setError(false);
-          setPin("");
-        }
+        void handleUnlock(nextPin);
       }
     }
   };
@@ -94,36 +90,61 @@ export const SessionLockModal: React.FC = () => {
           {!isSwitchingUser ? (
             <>
               <div className="text-center space-y-1">
-                <label className="text-xs font-semibold text-bji-slate-700 block">
-                  Enter 4-Digit Clinician PIN
-                </label>
-                <p className="text-meta text-bji-slate-500">
-                  (Default demo PIN: <span className="font-mono font-bold text-bji-slate-800">1234</span>)
-                </p>
+                  <label htmlFor="session-unlock-credential" className="text-xs font-semibold text-bji-slate-700 block">
+                    {isFirebaseSession ? "Re-enter account password" : "Enter 4-Digit Clinician PIN"}
+                  </label>
+                  {!isFirebaseSession && (
+                    <p className="text-meta text-bji-slate-500">
+                      (Demo PIN: <span className="font-mono font-bold text-bji-slate-800">1234</span>)
+                    </p>
+                  )}
 
-                {/* PIN Dots Display */}
-                <div className="flex justify-center gap-3 py-2">
-                  {[0, 1, 2, 3].map((i) => (
-                    <div
-                      key={i}
-                      className={`w-3.5 h-3.5 rounded-full border transition-all ${
-                        pin.length > i
-                          ? "bg-bji-green-600 border-bji-green-700 scale-110"
-                          : "bg-bji-slate-100 border-bji-slate-300"
-                      }`}
+                  {isFirebaseSession ? (
+                    <input
+                      id="session-unlock-credential"
+                      type="password"
+                      autoComplete="current-password"
+                      value={pin}
+                      onChange={(event) => setPin(event.target.value)}
+                      onKeyDown={handleKeyDown}
+                      className="w-full rounded-bji border border-bji-slate-300 px-3 py-2 text-sm text-bji-slate-900 outline-none focus:border-bji-green-600"
                     />
-                  ))}
-                </div>
+                  ) : (
+                    <div className="flex justify-center gap-3 py-2">
+                      {[0, 1, 2, 3].map((i) => (
+                        <div
+                          key={i}
+                          className={`w-3.5 h-3.5 rounded-full border transition-all ${
+                            pin.length > i
+                              ? "bg-bji-green-600 border-bji-green-700 scale-110"
+                              : "bg-bji-slate-100 border-bji-slate-300"
+                          }`}
+                        />
+                      ))}
+                    </div>
+                  )}
 
                 {error && (
                   <div className="flex items-center justify-center gap-1.5 text-meta text-bji-red-600 font-medium">
                     <AlertCircle className="w-3.5 h-3.5" />
-                    <span>Incorrect PIN. Please re-enter.</span>
+                    <span>{isFirebaseSession ? "Incorrect password. Please try again." : "Incorrect PIN. Please re-enter."}</span>
                   </div>
                 )}
               </div>
 
               {/* Touch Numeric Keypad (for Tablets and Touch Displays) */}
+              {isFirebaseSession ? (
+                <Button
+                  type="button"
+                  variant="primary"
+                  disabled={!pin || isSubmitting}
+                  onClick={() => void handleUnlock()}
+                  className="w-full"
+                  rightIcon={<ArrowRight className="w-4 h-4" />}
+                >
+                  {isSubmitting ? "Verifying..." : "Unlock workstation"}
+                </Button>
+              ) : (
               <div className="grid grid-cols-3 gap-2 max-w-[220px] mx-auto">
                 {["1", "2", "3", "4", "5", "6", "7", "8", "9"].map((d) => (
                   <button
@@ -151,13 +172,14 @@ export const SessionLockModal: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={handleUnlock}
-                  disabled={pin.length === 0}
+                  onClick={() => void handleUnlock()}
+                  disabled={pin.length === 0 || isSubmitting}
                   className="h-10 rounded-bji bg-bji-green-600 hover:bg-bji-green-700 active:bg-bji-green-800 disabled:opacity-40 text-white font-semibold flex items-center justify-center transition-colors"
                 >
                   <ArrowRight className="w-4 h-4" />
                 </button>
               </div>
+              )}
 
               {/* Switch User Footer Action */}
               <div className="pt-2 border-t border-bji-slate-100 text-center">

@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import Image from "next/image";
 import { 
   BedDouble, 
   Activity, 
@@ -76,6 +77,50 @@ export const MobileHospitalApp: React.FC = () => {
 
   const allergies = activePatient.allergies || [];
 
+  const handleGenerateSbar = () => {
+    const res = SBARService.generateSBAR(
+      activePatient,
+      activeEncounter,
+      activeBed,
+      latestObservation,
+      patientLabs,
+      patientOrders
+    );
+    setSbar(res);
+    setActiveTab('sbar');
+  };
+
+  const mobileTaskCards = [
+    {
+      label: "Vitals",
+      detail: "Update NEWS2",
+      icon: Activity,
+      action: () => setActiveTab('vitals'),
+      accent: "bg-teal-50 border-teal-200 text-teal-900", 
+    },
+    {
+      label: "eMAR",
+      detail: "Dose review",
+      icon: Pill,
+      action: () => setActiveTab('emar'),
+      accent: "bg-blue-50 border-blue-200 text-blue-900",
+    },
+    {
+      label: "Scribe",
+      detail: "Voice note",
+      icon: Mic,
+      action: () => setActiveTab('dictate'),
+      accent: "bg-emerald-50 border-emerald-200 text-emerald-900",
+    },
+    {
+      label: "SBAR",
+      detail: "Handover",
+      icon: FileText,
+      action: handleGenerateSbar,
+      accent: "bg-purple-50 border-purple-200 text-purple-900",
+    },
+  ];
+
   const handleSaveVitals = (e: React.FormEvent) => {
     e.preventDefault();
     recordVitals({
@@ -93,19 +138,6 @@ export const MobileHospitalApp: React.FC = () => {
       bloodGlucoseMgDl: glucose
     });
     setActiveTab('patient');
-  };
-
-  const handleGenerateSbar = () => {
-    const res = SBARService.generateSBAR(
-      activePatient,
-      activeEncounter,
-      activeBed,
-      latestObservation,
-      patientLabs,
-      patientOrders
-    );
-    setSbar(res);
-    setActiveTab('sbar');
   };
 
   const handleToggleDictate = async () => {
@@ -149,10 +181,11 @@ export const MobileHospitalApp: React.FC = () => {
               <ChevronLeft className="w-4 h-4" />
             </button>
           )}
+          <Image src="/icons/bji-medisupport-192.png" alt="" aria-hidden="true" width={28} height={28} className="shrink-0 rounded-md" />
           <div>
             <div className="flex items-center space-x-1.5">
               <span className="font-bold text-xs text-slate-900 leading-tight">
-                HospitalOS Rounding
+                BJI MediSupport
               </span>
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500" />
             </div>
@@ -239,111 +272,86 @@ export const MobileHospitalApp: React.FC = () => {
         {/* ==================================================== */}
         {activeTab === 'patient' && (
           <div className="space-y-3">
-            {/* Bedside Patient Card */}
-            <div className="bg-white rounded-lg p-3.5 border border-slate-200 shadow-xs space-y-2.5">
-              <div className="flex items-start justify-between">
+            <div className="rounded-[28px] border border-slate-200 bg-white p-4 shadow-[0_12px_32px_rgba(15,23,42,0.06)]">
+              <div className="flex items-start justify-between gap-3">
                 <div>
-                  <h1 className="text-sm font-bold text-slate-900 tracking-tight">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-emerald-700">Bedside overview</p>
+                  <h1 className="mt-1 text-lg font-black tracking-tight text-slate-900">
                     {activePatient.lastName}, {activePatient.firstName}
                   </h1>
-                  <p className="text-[11px] text-slate-500 font-mono">
+                  <p className="mt-1 text-[11px] text-slate-500 font-mono">
                     {activeBed ? `Bed ${activeBed.bedNumber}` : 'Outpatient'} • MRN: {activePatient.mrn} • {activeEncounter.codeStatus}
                   </p>
                 </div>
 
                 {latestObservation && (
-                  <span className={`px-2 py-0.5 rounded font-mono font-bold text-xs ${
+                  <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold ${
                     latestObservation.news2RiskTier === 'HIGH' ? 'bg-red-100 text-red-800' : 'bg-emerald-100 text-emerald-800'
                   }`}>
-                    NEWS2: {latestObservation.news2Score}
+                    NEWS2 {latestObservation.news2Score}
                   </span>
                 )}
               </div>
 
-              {/* Diagnosis Box */}
-              <div className="p-2 rounded bg-slate-50 border border-slate-100 text-xs text-slate-700">
+              <div className="mt-3 rounded-2xl bg-slate-50 p-2.5 text-xs text-slate-700">
                 <span className="font-semibold text-slate-900">Diagnosis:</span> {activeEncounter.admittingDiagnosis}
               </div>
 
-              {/* Red Allergy Alert */}
               {allergies.length > 0 && (
-                <div className="p-2 rounded bg-red-50 border border-red-200 text-red-800 text-xs font-bold flex items-center gap-1.5">
+                <div className="mt-3 rounded-2xl border border-red-200 bg-red-50 p-2.5 text-[11px] font-bold text-red-800 flex items-center gap-1.5">
                   <ShieldAlert className="w-3.5 h-3.5 text-red-600 shrink-0" />
                   <span>Allergy: {allergies.map(a => `${a.allergen} (${a.reaction})`).join(", ")}</span>
                 </div>
               )}
 
-              {/* Vitals Compact Strip */}
               {latestObservation && (
-                <div className="grid grid-cols-4 gap-1.5 pt-1 text-center text-xs font-mono">
-                  <div className="bg-slate-50 p-1.5 rounded border border-slate-100">
-                    <span className="text-[9px] text-slate-400 block font-sans">BP</span>
+                <div className="mt-3 grid grid-cols-4 gap-1.5 text-center text-[10px] font-mono">
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-2">
+                    <span className="block text-[9px] text-slate-400 font-sans">BP</span>
                     <span className="font-bold text-slate-900">{latestObservation.systolicBP}/{latestObservation.diastolicBP}</span>
                   </div>
-                  <div className="bg-slate-50 p-1.5 rounded border border-slate-100">
-                    <span className="text-[9px] text-slate-400 block font-sans">HR</span>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-2">
+                    <span className="block text-[9px] text-slate-400 font-sans">HR</span>
                     <span className="font-bold text-slate-900">{latestObservation.heartRate}</span>
                   </div>
-                  <div className="bg-slate-50 p-1.5 rounded border border-slate-100">
-                    <span className="text-[9px] text-slate-400 block font-sans">SpO2</span>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-2">
+                    <span className="block text-[9px] text-slate-400 font-sans">SpO2</span>
                     <span className="font-bold text-slate-900">{latestObservation.spO2}%</span>
                   </div>
-                  <div className="bg-slate-50 p-1.5 rounded border border-slate-100">
-                    <span className="text-[9px] text-slate-400 block font-sans">Glucose</span>
+                  <div className="rounded-xl border border-slate-100 bg-slate-50 p-2">
+                    <span className="block text-[9px] text-slate-400 font-sans">Glucose</span>
                     <span className="font-bold text-slate-900">{latestObservation.bloodGlucoseMgDl || '--'}</span>
                   </div>
                 </div>
               )}
             </div>
 
-            {/* ONE-HANDED BEDSIDE ACTION BUTTONS */}
             <div className="grid grid-cols-2 gap-2.5">
-              <button
-                onClick={() => setActiveTab('vitals')}
-                className="p-3 rounded-lg bg-teal-50 border border-teal-200 text-teal-900 font-bold text-xs flex flex-col items-center justify-center gap-1 active:scale-98 transition"
-              >
-                <Activity className="w-5 h-5 text-teal-600" />
-                <span>[ LOG VITALS ]</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('emar')}
-                className="p-3 rounded-lg bg-blue-50 border border-blue-200 text-blue-900 font-bold text-xs flex flex-col items-center justify-center gap-1 active:scale-98 transition"
-              >
-                <Pill className="w-5 h-5 text-blue-600" />
-                <span>[ eMAR DOSES ]</span>
-              </button>
-
-              <button
-                onClick={() => setActiveTab('dictate')}
-                className="p-3 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-900 font-bold text-xs flex flex-col items-center justify-center gap-1 active:scale-98 transition"
-              >
-                <Mic className="w-5 h-5 text-emerald-600" />
-                <span>[ VOICE NOTE ]</span>
-              </button>
-
-              <button
-                onClick={handleGenerateSbar}
-                className="p-3 rounded-lg bg-purple-50 border border-purple-200 text-purple-900 font-bold text-xs flex flex-col items-center justify-center gap-1 active:scale-98 transition"
-              >
-                <FileText className="w-5 h-5 text-purple-600" />
-                <span>[ SBAR HANDOVER ]</span>
-              </button>
+              {mobileTaskCards.map(({ label, detail, icon: Icon, action, accent }) => (
+                <button
+                  key={label}
+                  onClick={action}
+                  className={`flex flex-col items-center justify-center gap-1 rounded-2xl border p-3 text-center text-[10px] font-bold transition active:scale-[0.98] ${accent}`}
+                >
+                  <Icon className="h-5 w-5" />
+                  <span>{label.toUpperCase()}</span>
+                  <span className="text-[9px] font-medium opacity-80">{detail}</span>
+                </button>
+              ))}
             </div>
 
-            {/* Diagnostic Labs Fast Preview */}
-            <div className="bg-white rounded-lg p-3.5 border border-slate-200 shadow-xs space-y-2">
-              <div className="flex items-center justify-between border-b border-slate-100 pb-1.5">
-                <span className="font-bold text-xs text-slate-900 flex items-center gap-1.5">
-                  <Microscope className="w-3.5 h-3.5 text-emerald-600" />
-                  <span>Recent Diagnostic Labs</span>
+            <div className="rounded-[24px] border border-slate-200 bg-white p-3.5 shadow-[0_10px_24px_rgba(15,23,42,0.04)]">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <span className="flex items-center gap-1.5 text-xs font-bold text-slate-900">
+                  <Microscope className="h-3.5 w-3.5 text-emerald-600" />
+                  Recent diagnostic labs
                 </span>
-                <span className="text-[10px] text-slate-400 font-mono">{patientLabs.length} results</span>
+                <span className="font-mono text-[10px] text-slate-400">{patientLabs.length} results</span>
               </div>
 
-              <div className="space-y-1.5 text-xs">
+              <div className="mt-2 space-y-1.5 text-xs">
                 {patientLabs.slice(0, 3).map(lab => (
-                  <div key={lab.id} className="p-2 rounded bg-slate-50 border border-slate-100 flex items-center justify-between">
+                  <div key={lab.id} className="flex items-center justify-between rounded-xl border border-slate-100 bg-slate-50 p-2">
                     <div>
                       <span className="font-bold text-slate-900">{lab.testName}</span>
                       <p className="text-[10px] text-slate-400 font-mono">Ref: {lab.referenceRange}</p>
@@ -353,7 +361,7 @@ export const MobileHospitalApp: React.FC = () => {
                         {lab.value} {lab.unit}
                       </span>
                       {lab.flag !== 'NORMAL' && (
-                        <span className="block text-[9px] font-bold text-red-600 uppercase font-mono">{lab.flag}</span>
+                        <span className="mt-0.5 block text-[9px] font-bold uppercase text-red-600">{lab.flag}</span>
                       )}
                     </div>
                   </div>

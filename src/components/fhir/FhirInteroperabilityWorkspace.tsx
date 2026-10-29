@@ -55,12 +55,14 @@ export const FhirInteroperabilityWorkspace: React.FC = () => {
 
   // Generate FHIR R4 Bundle for the active patient
   const activeBundle = useMemo(() => {
-    return FhirMapperService.generatePatientBundle(activePatient, {
-      encounters: patientEncounters,
-      vitals: patientVitals,
-      orders: patientOrders,
-      labs: patientLabs
-    });
+    return FhirMapperService.generatePatientBundle(
+      activePatient,
+      patientEncounters,
+      patientVitals,
+      patientLabs,
+      patientOrders,
+      'collection'
+    );
   }, [activePatient, patientEncounters, patientVitals, patientOrders, patientLabs]);
 
   return (

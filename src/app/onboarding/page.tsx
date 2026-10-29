@@ -2,8 +2,14 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { usePlatform } from "@/lib/platform/platform-store";
+import { auth } from "@/lib/firebase/config";
+import { onAuthStateChanged } from "firebase/auth";
+import { completeFirebaseOrganizationSetup, refreshFirebaseEmailVerification, resendFirebaseVerificationEmail } from "@/lib/firebase/tenant-service";
+import type { FacilityType } from "@/lib/platform/mock-platform";
+
+const ONBOARDING_DRAFT_KEY = "bji_organization_onboarding_draft";
 
 const steps = [
   "Organization profile",
@@ -13,48 +19,150 @@ const steps = [
   "Queue and appointment setup",
 ];
 
+type OnboardingForm = {
+  organizationName: string;
+  adminEmail: string;
+  billingAddress: string;
+  facilityName: string;
+  facilityType: FacilityType;
+  city: string;
+  timezone: string;
+  adminName: string;
+};
+
 export default function OnboardingPage() {
   const router = useRouter();
   const { createOrganizationAndFacility, setActiveOrganizationId, setActiveFacilityId } = usePlatform();
   const [form, setForm] = useState({
-    organizationName: "BJI Health Group",
-    adminEmail: "admin@bjigroup.health",
-    billingAddress: "1400 Innovation Drive, Austin, TX",
-    facilityName: "BJI West Campus Clinic",
+    organizationName: "",
+    adminEmail: "",
+    billingAddress: "",
+    facilityName: "",
     facilityType: "clinic" as const,
-    city: "Austin",
+    city: "",
     timezone: "America/Chicago",
-    adminName: "Elena Rostova",
+    adminName: "",
   });
   const [error, setError] = useState<string | null>(null);
+  const [draftStatus, setDraftStatus] = useState("");
+  const [accountEmail, setAccountEmail] = useState("");
+  const [emailVerified, setEmailVerified] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSendingVerification, setIsSendingVerification] = useState(false);
+
+  useEffect(() => {
+    try {
+      const savedDraft = localStorage.getItem(ONBOARDING_DRAFT_KEY);
+      const draft = savedDraft ? JSON.parse(savedDraft) : {};
+      const pendingOrganization = sessionStorage.getItem("bji_pending_organization_name");
+      const pendingAdminName = sessionStorage.getItem("bji_pending_admin_name");
+      if (savedDraft || pendingOrganization || pendingAdminName) {
+        setForm((current) => ({
+          ...current,
+          ...(pendingOrganization ? { organizationName: pendingOrganization } : {}),
+          ...(pendingAdminName ? { adminName: pendingAdminName } : {}),
+          ...draft,
+          ...(auth.currentUser?.email ? { adminEmail: auth.currentUser.email } : {}),
+        }));
+        setDraftStatus("Your saved draft has been restored.");
+      }
+    } catch {
+      setDraftStatus("The saved draft could not be restored.");
+    }
+    return onAuthStateChanged(auth, (user) => {
+      setAccountEmail(user?.email ?? "");
+      setEmailVerified(user?.emailVerified ?? false);
+      if (user?.email) {
+        setForm((current) => ({ ...current, adminEmail: user.email ?? current.adminEmail }));
+      }
+    });
+  }, []);
 
   const handleChange = (field: keyof typeof form, value: string) => {
-    setForm((current) => ({ ...current, [field]: value }));
+    setForm((current) => ({ ...current, [field]: value as OnboardingForm[typeof field] }));
   };
 
-  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setError(null);
 
-    if (!form.organizationName.trim() || !form.adminEmail.trim() || !form.facilityName.trim()) {
-      setError("Organization name, admin email, and facility name are required.");
+    if (!form.adminEmail.trim()) {
+      setError("Sign in with a verified administrator account before continuing.");
       return;
     }
 
-    const result = createOrganizationAndFacility({
-      organizationName: form.organizationName,
-      adminEmail: form.adminEmail,
-      billingAddress: form.billingAddress,
-      facilityName: form.facilityName,
-      facilityType: form.facilityType,
-      city: form.city,
-      timezone: form.timezone,
-      adminName: form.adminName,
-    });
+    setIsSubmitting(true);
+    try {
+      const firebaseResult = await completeFirebaseOrganizationSetup({
+        organizationName: form.organizationName,
+        adminName: form.adminName || accountEmail,
+        billingAddress: form.billingAddress,
+        facilityName: form.facilityName,
+        facilityType: form.facilityType,
+        city: form.city,
+        timezone: form.timezone,
+      });
+      const result = createOrganizationAndFacility({
+        organizationName: firebaseResult.organizationName,
+        adminEmail: firebaseResult.adminEmail,
+        billingAddress: firebaseResult.billingAddress,
+        facilityName: firebaseResult.facilityName,
+        facilityType: firebaseResult.facilityType,
+        city: firebaseResult.city,
+        timezone: firebaseResult.timezone,
+        adminName: firebaseResult.adminName,
+        organizationId: firebaseResult.organizationId,
+        facilityId: firebaseResult.facilityId,
+      });
 
-    setActiveOrganizationId(result.organization.id);
-    setActiveFacilityId(result.facility.id);
-    setError(null);
-    router.push("/");
+      setActiveOrganizationId(result.organization.id);
+      setActiveFacilityId(result.facility.id);
+      localStorage.removeItem(ONBOARDING_DRAFT_KEY);
+      sessionStorage.removeItem("bji_pending_organization_name");
+      setDraftStatus(firebaseResult.recovered
+        ? "Your existing organization, facility, and administrator access were securely reconnected."
+        : "Organization, facility, and administrator created securely.");
+      router.push("/login?setup=complete");
+    } catch (setupError) {
+      const message = setupError instanceof Error ? setupError.message : "Organization setup failed. Please try again.";
+      setError(message);
+      if (message.includes("Verify your email")) {
+        setDraftStatus("Check your email, follow the verification link, then return here and refresh this page.");
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    setIsSendingVerification(true);
+    try {
+      await resendFirebaseVerificationEmail();
+      setDraftStatus("Verification email sent. Check your inbox and spam folder.");
+    } catch (verificationError) {
+      setError(verificationError instanceof Error ? verificationError.message : "Could not send the verification email.");
+    } finally {
+      setIsSendingVerification(false);
+    }
+  };
+
+  const handleCheckVerification = async () => {
+    try {
+      const verified = await refreshFirebaseEmailVerification();
+      setEmailVerified(verified);
+      setDraftStatus(verified ? "Email verified. You can complete organization setup." : "Email is not verified yet. Open the link in your inbox, then try again.");
+    } catch {
+      setError("Could not refresh email verification status. Reload the page and try again.");
+    }
+  };
+
+  const handleSaveDraft = () => {
+    try {
+      localStorage.setItem(ONBOARDING_DRAFT_KEY, JSON.stringify(form));
+      setDraftStatus("Draft saved in this browser.");
+    } catch {
+      setDraftStatus("Draft could not be saved in this browser.");
+    }
   };
 
   return (
@@ -98,8 +206,19 @@ export default function OnboardingPage() {
                   type="email"
                   value={form.adminEmail}
                   onChange={(event) => handleChange("adminEmail", event.target.value)}
+                  readOnly={Boolean(accountEmail)}
                   className="mt-2 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm outline-none ring-0 transition focus:border-emerald-500 focus:bg-white"
                 />
+                {accountEmail && (
+                  <span className={`mt-1 block text-xs ${emailVerified ? "text-emerald-700" : "text-amber-700"}`}>
+                    {emailVerified ? "Email verified" : "Email verification required"}
+                  </span>
+                )}
+                {!accountEmail && (
+                  <Link href="/signup" className="mt-1 inline-block text-xs font-semibold text-emerald-700 hover:text-emerald-800">
+                    Create the administrator account first
+                  </Link>
+                )}
               </label>
               <label className="block text-sm font-medium text-slate-700 sm:col-span-2">
                 Billing and contact information
@@ -165,18 +284,30 @@ export default function OnboardingPage() {
             <div className="mt-8 flex items-center gap-3">
               <button
                 type="submit"
+                disabled={isSubmitting || !accountEmail || !emailVerified}
                 className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700"
               >
-                Save organization
+                {isSubmitting ? "Creating secure workspace..." : "Create organization"}
               </button>
               <button
                 type="button"
-                onClick={() => router.push("/")}
+                onClick={handleSaveDraft}
                 className="rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
               >
-                Save as draft
+                Save draft
               </button>
             </div>
+            {accountEmail && !emailVerified && (
+              <div className="mt-4 flex gap-3">
+                <button type="button" onClick={handleResendVerification} disabled={isSendingVerification} className="text-sm font-semibold text-emerald-700 hover:text-emerald-800 disabled:opacity-50">
+                  {isSendingVerification ? "Sending..." : "Resend verification email"}
+                </button>
+                <button type="button" onClick={handleCheckVerification} className="text-sm font-semibold text-slate-700 hover:text-slate-900">
+                  I verified my email
+                </button>
+              </div>
+            )}
+            {draftStatus && <p role="status" aria-live="polite" className="mt-3 text-sm text-slate-600">{draftStatus}</p>}
           </form>
 
           <aside className="rounded-2xl border border-slate-200 bg-slate-900 p-6 text-slate-100 shadow-sm">

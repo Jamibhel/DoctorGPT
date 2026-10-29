@@ -1,0 +1,101 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1680" viewBox="0 0 1800 1680" role="img" aria-labelledby="title desc">
+  <title id="title">BJI MediSupport project flow</title>
+  <desc id="desc">Current public, identity, tenant operations, and disconnected clinical component flows.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#496173"/></marker>
+    <style>
+      text{font-family:Segoe UI,Arial,sans-serif;fill:#172b3a}
+      .title{font-size:34px;font-weight:700}.sub{font-size:16px;fill:#526574}.lane{font-size:18px;font-weight:700;letter-spacing:1px}.nodeTitle{font-size:17px;font-weight:700}.nodeText{font-size:14px;fill:#344b5a}.small{font-size:13px;fill:#526574}.tag{font-size:12px;font-weight:700;letter-spacing:.5px}
+      .laneBox{fill:#fff;stroke:#d5e0e7;stroke-width:2}.public{fill:#e8f2ff;stroke:#2b5c92}.auth{fill:#e9f7ef;stroke:#2d6a4f}.ops{fill:#fff4df;stroke:#986314}.clinical{fill:#f0ebf8;stroke:#675184;stroke-dasharray:8 6}.node{stroke-width:2;rx:12}.edge{fill:none;stroke:#496173;stroke-width:2.5;marker-end:url(#arrow)}.edgeDash{fill:none;stroke:#806a9a;stroke-width:2.5;stroke-dasharray:8 6;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1800" height="1680" fill="#f4f7f9"/>
+  <text x="70" y="64" class="title">BJI MediSupport | Project Flow</text>
+  <text x="70" y="94" class="sub">As-is routes and workflows, plus the remaining clinical integration path</text>
+  <g transform="translate(1270 56)">
+    <rect x="0" y="0" width="18" height="18" rx="4" class="public node"/><text x="28" y="14" class="small">Current route</text>
+    <rect x="145" y="0" width="18" height="18" rx="4" class="auth node"/><text x="173" y="14" class="small">Implemented Auth</text>
+    <rect x="340" y="0" width="18" height="18" rx="4" class="clinical node"/><text x="368" y="14" class="small">Not wired</text>
+  </g>
+
+  <!-- Public entry -->
+  <rect x="50" y="125" width="1700" height="190" rx="18" class="laneBox"/>
+  <text x="80" y="160" class="lane">1. PUBLIC ENTRY</text>
+  <rect x="100" y="195" width="300" height="82" class="node public"/>
+  <text x="250" y="228" text-anchor="middle" class="nodeTitle">Home /</text><text x="250" y="253" text-anchor="middle" class="nodeText">Public site and entry links</text>
+  <rect x="560" y="195" width="300" height="82" class="node public"/>
+  <text x="710" y="228" text-anchor="middle" class="nodeTitle">/signup</text><text x="710" y="253" text-anchor="middle" class="nodeText">Create administrator account</text>
+  <rect x="1000" y="195" width="300" height="82" class="node public"/>
+  <text x="1150" y="228" text-anchor="middle" class="nodeTitle">/login</text><text x="1150" y="253" text-anchor="middle" class="nodeText">Email and password</text>
+  <rect x="1420" y="195" width="270" height="82" class="node public"/>
+  <text x="1555" y="228" text-anchor="middle" class="nodeTitle">/forgot-password</text><text x="1555" y="253" text-anchor="middle" class="nodeText">Non-enumerating reset request</text>
+  <path d="M400 236 H560" class="edge"/><path d="M400 245 H1000" class="edge"/><path d="M1300 236 H1420" class="edge"/>
+
+  <!-- Auth and tenant -->
+  <rect x="50" y="340" width="1700" height="350" rx="18" class="laneBox"/>
+  <text x="80" y="375" class="lane">2. IDENTITY AND TENANT SETUP · IMPLEMENTED</text>
+  <rect x="100" y="420" width="340" height="92" class="node auth"/>
+  <text x="270" y="453" text-anchor="middle" class="nodeTitle">Firebase password policy</text>
+  <text x="270" y="479" text-anchor="middle" class="nodeText">12+ chars · upper/lower · number · symbol</text>
+  <rect x="530" y="420" width="270" height="92" class="node auth"/>
+  <text x="665" y="453" text-anchor="middle" class="nodeTitle">Verify email</text><text x="665" y="479" text-anchor="middle" class="nodeText">Required before tenant setup</text>
+  <rect x="900" y="420" width="250" height="92" class="node auth"/>
+  <text x="1025" y="453" text-anchor="middle" class="nodeTitle">/onboarding</text><text x="1025" y="479" text-anchor="middle" class="nodeText">Recover or create tenant</text>
+  <polygon points="1320,412 1450,466 1320,520 1190,466" fill="#f4fbf7" stroke="#2d6a4f" stroke-width="2"/>
+  <text x="1320" y="460" text-anchor="middle" class="nodeText" font-weight="700">Matching admin</text><text x="1320" y="480" text-anchor="middle" class="nodeText" font-weight="700">email exists?</text>
+  <rect x="940" y="565" width="330" height="82" class="node auth"/>
+  <text x="1105" y="596" text-anchor="middle" class="nodeTitle">Reconnect existing tenant</text><text x="1105" y="621" text-anchor="middle" class="nodeText">Reuse saved org and facility</text>
+  <rect x="1330" y="565" width="340" height="82" class="node auth"/>
+  <text x="1500" y="596" text-anchor="middle" class="nodeTitle">Create new tenant</text><text x="1500" y="621" text-anchor="middle" class="nodeText">Org + facility + admin profile</text>
+  <path d="M710 277 V385 H270 V420" class="edge"/>
+  <path d="M440 466 H530" class="edge"/><path d="M800 466 H900" class="edge"/><path d="M1150 466 H1190" class="edge"/>
+  <path d="M1320 520 V540 H1105 V565" class="edge"/><text x="1198" y="549" class="tag">YES</text>
+  <path d="M1450 466 H1500 V565" class="edge"/><text x="1462" y="451" class="tag">NO</text>
+  <path d="M1150 277 V365 H1530 V420" class="edge"/>
+  <path d="M1555 277 V300 H1450 V332" class="edge"/>
+  <rect x="570" y="565" width="290" height="82" class="node auth"/>
+  <text x="715" y="596" text-anchor="middle" class="nodeTitle">Firebase Auth</text><text x="715" y="621" text-anchor="middle" class="nodeText">Verified active staff profile</text>
+  <path d="M1105 647 V660 H715 V647" class="edge"/><path d="M1500 647 V660 H715 V647" class="edge"/>
+
+  <!-- Operations -->
+  <rect x="50" y="715" width="1700" height="350" rx="18" class="laneBox"/>
+  <text x="80" y="750" class="lane">3. CURRENT TENANT OPERATIONS</text>
+  <rect x="660" y="780" width="360" height="78" class="node ops"/>
+  <text x="840" y="812" text-anchor="middle" class="nodeTitle">/workspace</text><text x="840" y="837" text-anchor="middle" class="nodeText">Org and facility overview</text>
+  <rect x="160" y="915" width="330" height="82" class="node ops"/>
+  <text x="325" y="947" text-anchor="middle" class="nodeTitle">/facilities</text><text x="325" y="972" text-anchor="middle" class="nodeText">Facility list and staff records</text>
+  <rect x="570" y="915" width="330" height="82" class="node ops"/>
+  <text x="735" y="947" text-anchor="middle" class="nodeTitle">/patients</text><text x="735" y="972" text-anchor="middle" class="nodeText">Register patients and appointments</text>
+  <rect x="1000" y="915" width="300" height="82" class="node ops"/>
+  <text x="1150" y="947" text-anchor="middle" class="nodeTitle">Firestore writes</text><text x="1150" y="972" text-anchor="middle" class="nodeText">Facility-scoped patient data</text>
+  <rect x="1380" y="915" width="300" height="82" class="node ops"/>
+  <text x="1530" y="947" text-anchor="middle" class="nodeTitle">/portal</text><text x="1530" y="972" text-anchor="middle" class="nodeText">Requires patient session</text>
+  <rect x="100" y="1012" width="390" height="38" rx="8" fill="#fff8e9" stroke="#986314"/>
+  <text x="295" y="1037" text-anchor="middle" class="small">Staff is pending; Auth invite delivery is not wired</text>
+  <rect x="570" y="1012" width="330" height="38" rx="8" fill="#fff8e9" stroke="#986314"/>
+  <text x="735" y="1037" text-anchor="middle" class="small">Patient identity / portal sign-in is not wired</text>
+  <rect x="1000" y="1012" width="300" height="38" rx="8" fill="#fff8e9" stroke="#986314"/>
+  <text x="1150" y="1037" text-anchor="middle" class="small">/facilities/[id] is a placeholder</text>
+  <path d="M715 647 V680 H840 V780" class="edge"/>
+  <path d="M840 858 V885 H325 V915" class="edge"/><path d="M840 858 V915 H735" class="edge"/>
+  <path d="M900 956 H1000" class="edge"/><path d="M1300 956 H1380" class="edge"/>
+  <path d="M325 997 V1012" class="edge"/>
+
+  <!-- Clinical modules -->
+  <rect x="50" y="1090" width="1700" height="510" rx="18" fill="#fbf9fd" stroke="#9b8caf" stroke-width="2" stroke-dasharray="10 7"/>
+  <text x="80" y="1128" class="lane" fill="#563f70">4. CLINICAL COMPONENTS · PRESENT IN CODE, NOT MOUNTED</text>
+  <rect x="560" y="1160" width="680" height="92" class="node clinical"/>
+  <text x="900" y="1193" text-anchor="middle" class="nodeTitle">Integration gate</text>
+  <text x="900" y="1220" text-anchor="middle" class="nodeText">Mount HospitalProvider + authenticated role gate; reconcile tenant and clinical state</text>
+  <rect x="220" y="1310" width="460" height="82" class="node clinical"/>
+  <text x="450" y="1343" text-anchor="middle" class="nodeTitle">Desktop clinical shell</text><text x="450" y="1368" text-anchor="middle" class="nodeText">AppShell + DesktopHospitalWorkspace</text>
+  <rect x="1120" y="1310" width="460" height="82" class="node clinical"/>
+  <text x="1350" y="1343" text-anchor="middle" class="nodeTitle">Mobile clinical shell</text><text x="1350" y="1368" text-anchor="middle" class="nodeText">MobileHospitalApp</text>
+  <rect x="110" y="1445" width="1580" height="90" class="node clinical"/>
+  <text x="900" y="1478" text-anchor="middle" class="nodeTitle">Clinical views and task screens</text>
+  <text x="900" y="1505" text-anchor="middle" class="nodeText">Command · chart · registry · CPOE · eMAR · pharmacy · beds/ADT · imaging · emergency · theatre · scribe · FHIR · facility ops · audit</text>
+  <path d="M1020 1065 V1160" class="edgeDash"/>
+  <path d="M900 1252 V1280 H450 V1310" class="edgeDash"/><path d="M900 1280 H1350 V1310" class="edgeDash"/>
+  <path d="M450 1392 V1420 H900 V1445" class="edgeDash"/><path d="M1350 1392 V1420 H900" class="edgeDash"/>
+  <text x="80" y="1638" class="small">Solid paths are current route/workflow code. Dashed paths require integration before clinical use. This diagram is an engineering map, not a claim of compliance or production readiness.</text>
+</svg>

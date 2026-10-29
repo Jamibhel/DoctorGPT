@@ -118,7 +118,7 @@ export const RegisterFacilityModal: React.FC<RegisterFacilityModalProps> = ({
       );
 
       // Automatically sign in as the newly provisioned administrator
-      loginStaff(adminEmail.trim(), adminPassword.trim() || "admin123", res.facility.id);
+      await loginStaff(adminEmail.trim(), adminPassword.trim() || "admin123", res.facility.id);
 
       setSuccessInfo({
         facilityName: res.facility.name,

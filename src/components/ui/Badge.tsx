@@ -1,8 +1,18 @@
 import React from "react";
 import { cn } from "@/lib/utils";
 
-export type BadgeTone = "success" | "info" | "warning" | "critical" | "neutral";
-export type BadgeVariant = "subtle" | "solid" | "outline";
+export type BadgeTone = "success" | "info" | "warning" | "critical" | "danger" | "neutral";
+export type BadgeVariant =
+  | "subtle"
+  | "solid"
+  | "outline"
+  | "blue"
+  | "red"
+  | "emerald"
+  | "amber"
+  | "green"
+  | "gray"
+  | "neutral";
 export type BadgeSize = "xs" | "sm";
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
@@ -14,14 +24,34 @@ export interface BadgeProps extends React.HTMLAttributes<HTMLSpanElement> {
 
 export const Badge: React.FC<BadgeProps> = ({
   className,
-  tone = "neutral",
+  tone,
   variant = "subtle",
   size = "sm",
   dot = false,
   children,
   ...props
 }) => {
-  const toneStyles: Record<BadgeTone, Record<BadgeVariant, string>> = {
+  const legacyVariantToneMap: Record<string, BadgeTone> = {
+    blue: "info",
+    red: "critical",
+    emerald: "success",
+    amber: "warning",
+    green: "success",
+    gray: "neutral",
+    danger: "critical",
+    neutral: "neutral",
+    success: "success",
+    info: "info",
+    warning: "warning",
+    critical: "critical",
+  };
+
+  const resolvedTone = tone ?? legacyVariantToneMap[variant] ?? "neutral";
+  const resolvedVariant: "subtle" | "solid" | "outline" = ["subtle", "solid", "outline"].includes(variant)
+    ? variant
+    : "subtle";
+
+  const toneStyles: Record<BadgeTone, Record<"subtle" | "solid" | "outline", string>> = {
     success: {
       subtle: "bg-bji-green-50 text-bji-green-800 border-bji-green-200/80",
       solid: "bg-bji-green-600 text-white border-transparent",
@@ -42,6 +72,11 @@ export const Badge: React.FC<BadgeProps> = ({
       solid: "bg-bji-red-600 text-white border-transparent",
       outline: "bg-transparent text-bji-red-700 border-bji-red-300",
     },
+    danger: {
+      subtle: "bg-bji-red-50 text-bji-red-800 border-bji-red-200/80",
+      solid: "bg-bji-red-600 text-white border-transparent",
+      outline: "bg-transparent text-bji-red-700 border-bji-red-300",
+    },
     neutral: {
       subtle: "bg-bji-slate-100 text-bji-slate-700 border-bji-slate-200",
       solid: "bg-bji-slate-700 text-white border-transparent",
@@ -54,6 +89,7 @@ export const Badge: React.FC<BadgeProps> = ({
     info: "bg-bji-blue-500",
     warning: "bg-bji-amber-500",
     critical: "bg-bji-red-500",
+    danger: "bg-bji-red-500",
     neutral: "bg-bji-slate-400",
   };
 
@@ -66,7 +102,7 @@ export const Badge: React.FC<BadgeProps> = ({
     <span
       className={cn(
         "inline-flex items-center border select-none whitespace-nowrap",
-        toneStyles[tone][variant],
+        toneStyles[resolvedTone][resolvedVariant],
         sizeStyles[size],
         className
       )}
@@ -76,7 +112,7 @@ export const Badge: React.FC<BadgeProps> = ({
         <span
           className={cn(
             "w-1.5 h-1.5 rounded-full shrink-0",
-            variant === "solid" ? "bg-white" : dotColors[tone]
+            resolvedVariant === "solid" ? "bg-white" : dotColors[resolvedTone]
           )}
         />
       )}

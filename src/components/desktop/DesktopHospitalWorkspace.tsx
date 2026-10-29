@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Image from "next/image";
 import { 
   Building2, 
   BedDouble, 
@@ -58,6 +59,7 @@ import { EmergencyWorkspace } from "../emergency";
 import { OperatingTheatreWorkspace } from "../surgery";
 import { BedMatrixWorkspace } from "../beds";
 import { FhirInteroperabilityWorkspace } from "../fhir";
+import { Badge } from "@/components/ui/Badge";
 
 export interface DesktopHospitalWorkspaceProps {
   externalView?: string;
@@ -92,6 +94,7 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
     verifyOrderPharmacy,
     dispenseOrderPharmacy,
     administerMedication,
+    saveClinicalNote,
     signClinicalNote,
     triggerEmergencyCode,
     acknowledgeEmergencyCode,
@@ -100,7 +103,7 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
 
   // Navigation State
   // Active primary view: command center -> patient workspace -> operations/meds/imaging/pharmacy -> task-specific views
-  const [activeView, setActiveView] = useState<'command' | 'chart' | 'orders' | 'medications' | 'imaging' | 'pharmacy' | 'beds' | 'scribe' | 'operations' | 'ot' | 'facility_admin' | 'registry' | 'emergency' | 'trauma' | 'fhir'>('command');
+  const [activeView, setActiveView] = useState<'command' | 'chart' | 'orders' | 'cpoe' | 'medications' | 'imaging' | 'pharmacy' | 'beds' | 'scribe' | 'operations' | 'ot' | 'facility_admin' | 'registry' | 'emergency' | 'trauma' | 'fhir'>('command');
   
   // Sync with AppShell activeView if provided
   React.useEffect(() => {
@@ -246,20 +249,110 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
   };
 
   const handleSignSoapNote = () => {
-    signClinicalNote({
+    const savedNote = {
       encounterId: activeEncounterId,
       patientId: activePatientId,
       authorId: currentStaff.id,
       noteType: 'SOAP_ENCOUNTER',
+      status: 'DRAFT',
       subjective: { text: draftedSoap.subjective },
       objective: { text: draftedSoap.objective },
       assessment: { text: draftedSoap.assessment },
       plan: { text: draftedSoap.plan }
-    });
+    } as const;
+
+    const saved = saveClinicalNote(savedNote as any);
+    signClinicalNote(saved.id);
     alert("SOAP Note signed and committed to EHR chart!");
   };
 
   const allergies = activePatient.allergies || [];
+
+  const taskCards = [
+    {
+      title: "Vitals review",
+      subtitle: "Latest NEWS2 / resus trigger",
+      action: "Open chart",
+      tone: "blue",
+      view: "chart" as const,
+      icon: Activity,
+      meta: latestObservation ? `NEWS2 ${latestObservation.news2Score}` : "Awaiting vitals",
+    },
+    {
+      title: "Medication due",
+      subtitle: "Administer and verify meds",
+      action: "Open eMAR",
+      tone: "emerald",
+      view: "medications" as const,
+      icon: Pill,
+      meta: `${patientAdms.length} scheduled`,
+    },
+    {
+      title: "Diagnostics",
+      subtitle: "Labs and imaging review",
+      action: "Open diagnostics",
+      tone: "amber",
+      view: "imaging" as const,
+      icon: Eye,
+      meta: `${patientLabs.length + patientImaging.length} active`,
+    },
+    {
+      title: "Clinical handoff",
+      subtitle: "SBAR and care summary",
+      action: "Prepare handoff",
+      tone: "violet",
+      view: "chart" as const,
+      icon: FileText,
+      meta: generatedSbar ? "Draft ready" : "Ready",
+    },
+  ];
+
+  const QuickTaskCard = ({
+    title,
+    subtitle,
+    action,
+    tone,
+    view,
+    meta,
+    Icon,
+  }: {
+    title: string;
+    subtitle: string;
+    action: string;
+    tone: "blue" | "emerald" | "amber" | "violet";
+    view: "chart" | "medications" | "imaging";
+    meta: string;
+    Icon: typeof Activity;
+  }) => {
+    const palette = {
+      blue: "bg-blue-50 border-blue-200 text-blue-800 hover:bg-blue-100",
+      emerald: "bg-emerald-50 border-emerald-200 text-emerald-800 hover:bg-emerald-100",
+      amber: "bg-amber-50 border-amber-200 text-amber-800 hover:bg-amber-100",
+      violet: "bg-violet-50 border-violet-200 text-violet-800 hover:bg-violet-100",
+    };
+
+    return (
+      <button
+        onClick={() => setActiveView(view)}
+        className={`rounded-xl border p-3 text-left transition-all ${palette[tone]} shadow-xs`}
+      >
+        <div className="flex items-center justify-between gap-2">
+          <div className="rounded-lg bg-white/80 p-2 shadow-xs">
+            <Icon className="w-4 h-4" />
+          </div>
+          <span className="text-[10px] font-bold uppercase tracking-[0.12em] text-slate-600">{meta}</span>
+        </div>
+        <div className="mt-3">
+          <div className="text-[12px] font-bold text-slate-900">{title}</div>
+          <div className="mt-1 text-[11px] text-slate-600 leading-relaxed">{subtitle}</div>
+        </div>
+        <div className="mt-3 flex items-center justify-between text-[11px] font-semibold text-slate-700">
+          <span>{action}</span>
+          <ChevronRight className="w-4 h-4" />
+        </div>
+      </button>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-[#F4F6F8] text-[#172033] flex antialiased selection:bg-[#2563EB] selection:text-white">
@@ -271,9 +364,7 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
         <div>
           {/* Workstation Header */}
           <div className="p-4 border-b border-[#D7DEE7] flex items-center space-x-3 bg-[#F8FAFC]">
-            <div className="w-8 h-8 rounded-md bg-[#2563EB] text-white flex items-center justify-center font-bold text-xs shadow-sm">
-              <Building2 className="w-4 h-4" />
-            </div>
+            <Image src="/icons/bji-medisupport-192.png" alt="" aria-hidden="true" width={32} height={32} className="rounded-md" />
             <div className="min-w-0">
               <div className="flex items-center space-x-1.5">
                 <span className="font-bold text-[15px] text-[#172033] tracking-tight">HospitalOS</span>
@@ -882,50 +973,78 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
           {/* ==================================================== */}
           {activeView === 'command' && (
             <div className="space-y-5">
-              <div className="flex items-center justify-between pb-1">
+              <div className="flex flex-wrap items-end justify-between gap-4 rounded-3xl border border-slate-200 bg-white px-6 py-5 shadow-[0_12px_32px_rgba(15,23,42,0.05)]">
                 <div>
-                  <div className="text-[11px] uppercase tracking-[0.18em] text-[#64748B] font-semibold">Command Center</div>
-                  <h2 className="text-[20px] font-bold text-[#172033] mt-1">3F Med-Surg</h2>
+                  <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-teal-800">
+                    <span className="h-2 w-2 rounded-full bg-emerald-500" /> Command Center
+                  </div>
+                  <h2 className="mt-2 text-2xl font-bold tracking-tight text-slate-900">Hospital overview</h2>
+                  <p className="mt-1 text-sm text-slate-500">A live view of patient flow, bed capacity, and care priorities.</p>
                 </div>
-                <div className="text-[12px] text-[#475569]">
-                  Wednesday, September 30, 2026 <span className="font-semibold text-[#172033]">• Shift 07:00–19:00</span>
+                <div className="text-right text-sm text-slate-500">
+                  <div className="font-semibold text-slate-800">{new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</div>
+                  <div className="mt-1">Day shift <span className="font-medium text-slate-700">07:00–19:00</span></div>
                 </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+                {taskCards.map((task) => (
+                  <QuickTaskCard
+                    key={task.title}
+                    title={task.title}
+                    subtitle={task.subtitle}
+                    action={task.action}
+                    tone={task.tone}
+                    view={task.view}
+                    meta={task.meta}
+                    Icon={task.icon}
+                  />
+                ))}
               </div>
 
               <div className="grid grid-cols-1 xl:grid-cols-[1.6fr_0.9fr] gap-5">
                 <div className="space-y-5">
-                  <div className="bg-white border border-[#D7DEE7] rounded-[6px] p-4">
-                    <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#E7ECF3]">
-                      <h3 className="text-[12px] uppercase tracking-[0.14em] font-bold text-[#475569]">Ward status</h3>
-                      <span className="text-[11px] font-mono text-[#64748B]">Census {occupiedBedsCount}/{totalBedsCount}</span>
+                  <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-[0_12px_32px_rgba(15,23,42,0.04)]">
+                    <div className="mb-4 flex items-center justify-between gap-3 border-b border-slate-100 pb-3">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900">Capacity & safety</h3>
+                        <p className="mt-1 text-xs text-slate-500">Current facility snapshot</p>
+                      </div>
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">Live data</span>
                     </div>
 
-                    <div className="grid grid-cols-4 gap-3 text-[11px]">
+                    <div className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
                       {[
-                        ['ED', '12 patients'],
-                        ['ICU', '3 / 4'],
-                        ['MED-SURG', '18 / 20'],
-                        ['OR', '2 active']
-                      ].map(([label, value]) => (
-                        <div key={label} className="border border-[#D7DEE7] rounded-[4px] bg-[#F8FAFC] px-3 py-2">
-                          <div className="text-[#64748B] font-medium">{label}</div>
-                          <div className="mt-1 font-bold text-[#172033]">{value}</div>
+                        { label: 'Occupied beds', value: `${occupiedBedsCount} / ${totalBedsCount}`, tone: 'text-blue-700', icon: BedDouble },
+                        { label: 'Available', value: availableBedsCount, tone: 'text-emerald-700', icon: CheckCircle2 },
+                        { label: 'Being cleaned', value: cleaningBedsCount, tone: 'text-amber-700', icon: RefreshCw },
+                        { label: 'Elevated risk', value: highRiskPatientsCount, tone: 'text-rose-700', icon: AlertTriangle },
+                      ].map(({ label, value, tone, icon: MetricIcon }) => (
+                        <div key={label} className="rounded-2xl border border-slate-100 bg-slate-50/80 px-3 py-3">
+                          <div className="flex items-center justify-between gap-2 text-slate-500">
+                            <span className="text-xs font-medium">{label}</span>
+                            <MetricIcon className={`h-4 w-4 ${tone}`} />
+                          </div>
+                          <div className={`mt-2 text-xl font-bold tracking-tight ${tone}`}>{value}</div>
                         </div>
                       ))}
                     </div>
                   </div>
 
-                  <div className="bg-white border border-[#D7DEE7] rounded-[6px] overflow-hidden">
-                    <div className="flex items-center justify-between px-4 py-3 border-b border-[#E7ECF3] bg-[#F8FAFC]">
-                      <h3 className="text-[12px] uppercase tracking-[0.14em] font-bold text-[#475569]">Bed / patient matrix</h3>
-                      <span className="text-[11px] text-[#64748B] font-mono">Live occupancy</span>
+                  <div className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.04)]">
+                    <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+                      <div>
+                        <h3 className="text-sm font-bold text-slate-900">Bed and patient overview</h3>
+                        <p className="mt-1 text-xs text-slate-500">Select an occupied bed to open the patient chart.</p>
+                      </div>
+                      <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">{occupiedBedsCount} occupied</span>
                     </div>
-                    <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2">
                       {departments.filter(d => selectedWardFilter === 'ALL' || d.id === selectedWardFilter).map(dept => {
                         const deptBeds = beds.filter(b => b.wardId === dept.id);
                         return (
-                          <div key={dept.id} className="border border-[#D7DEE7] rounded-[4px] overflow-hidden">
-                            <div className="px-3 py-2 bg-[#F8FAFC] border-b border-[#E7ECF3] text-[11px] font-bold text-[#475569] uppercase tracking-[0.12em]">{dept.name}</div>
+                          <div key={dept.id} className="overflow-hidden rounded-2xl border border-slate-200">
+                            <div className="border-b border-slate-100 bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-700">{dept.name}</div>
                             <div className="grid grid-cols-2 gap-2 p-3">
                               {deptBeds.slice(0, 4).map(bed => {
                                 const p = patients.find(patient => patient.id === bed.currentPatientId);
@@ -934,20 +1053,20 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
                                   <button
                                     key={bed.id}
                                     onClick={() => p && setActivePatientId(p.id)}
-                                    className={`text-left rounded-[4px] border p-2 ${
+                                    className={`text-left rounded-xl border p-3 transition hover:shadow-sm ${
                                       status === 'occupied'
-                                        ? 'bg-[#EFF6FF] border-[#BFDBFE]'
+                                        ? 'bg-blue-50/70 border-blue-200 hover:border-blue-300'
                                         : status === 'available'
-                                        ? 'bg-[#F0FDF4] border-[#BBF7D0]'
-                                        : 'bg-[#FFFBEB] border-[#FCD34D]'
+                                        ? 'bg-emerald-50/70 border-emerald-200 hover:border-emerald-300'
+                                        : 'bg-amber-50/70 border-amber-200 hover:border-amber-300'
                                     }`}
                                   >
-                                    <div className="flex items-center justify-between mb-1">
-                                      <span className="font-bold text-[#172033] text-[11px]">{bed.bedNumber}</span>
-                                      <span className="text-[9px] uppercase tracking-[0.08em] font-semibold text-[#475569]">{status}</span>
+                                    <div className="mb-1 flex items-center justify-between">
+                                      <span className="text-[11px] font-bold text-slate-900">{bed.bedNumber}</span>
+                                      <span className="text-[9px] font-semibold uppercase tracking-[0.08em] text-slate-600">{status}</span>
                                     </div>
-                                    <div className="text-[11px] font-semibold text-[#172033] truncate">{p ? `${p.lastName}, ${p.firstName}` : 'Available'}</div>
-                                    <div className="text-[10px] text-[#64748B] font-mono mt-1">{p ? `NEWS2 ${observations.find(o => o.patientId === p.id)?.news2Score ?? 0}` : 'Ready for admission'}</div>
+                                    <div className="truncate text-[11px] font-semibold text-slate-900">{p ? `${p.lastName}, ${p.firstName}` : 'Available'}</div>
+                                    <div className="mt-1 font-mono text-[10px] text-slate-500">{p ? `NEWS2 ${observations.find(o => o.patientId === p.id)?.news2Score ?? 0}` : 'Ready for admission'}</div>
                                   </button>
                                 );
                               })}
@@ -959,11 +1078,12 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
                   </div>
                 </div>
 
-                <aside className="bg-white border border-[#D7DEE7] rounded-[6px] overflow-hidden">
-                  <div className="px-4 py-3 border-b border-[#E7ECF3] bg-[#F8FAFC]">
-                    <h3 className="text-[12px] uppercase tracking-[0.14em] font-bold text-[#475569]">Priority patients</h3>
+                <aside className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_12px_32px_rgba(15,23,42,0.04)]">
+                  <div className="border-b border-slate-100 px-4 py-4">
+                    <h3 className="text-sm font-bold text-slate-900">Patients to review</h3>
+                    <p className="mt-1 text-xs text-slate-500">Open a patient chart for the full clinical picture.</p>
                   </div>
-                  <div className="p-3 space-y-2">
+                  <div className="space-y-2 p-3">
                     {patients.slice(0, 5).map(p => {
                       const enc = encounters.find(e => e.patientId === p.id && e.status === 'ACTIVE');
                       const bed = beds.find(b => b.currentPatientId === p.id);
@@ -975,14 +1095,14 @@ export const DesktopHospitalWorkspace: React.FC<DesktopHospitalWorkspaceProps> =
                             setActivePatientId(p.id);
                             setActiveView('chart');
                           }}
-                          className="w-full text-left rounded-[4px] border border-[#E7ECF3] bg-[#F8FAFC] px-3 py-2 hover:border-[#BFDBFE] transition"
+                          className="w-full rounded-2xl border border-slate-100 bg-slate-50 px-3 py-3 text-left transition hover:border-blue-200 hover:bg-blue-50/50"
                         >
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-bold text-[#172033] text-[12px]">{bed?.bedNumber || 'Ward'} • {p.lastName}, {p.firstName}</span>
-                            <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-[#EFF6FF] text-[#1D4ED8]">NEWS2 {obs?.news2Score ?? 0}</span>
+                            <span className="text-[12px] font-bold text-slate-900">{bed?.bedNumber || 'Ward'} • {p.lastName}, {p.firstName}</span>
+                            <span className="rounded bg-blue-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-blue-700">NEWS2 {obs?.news2Score ?? 0}</span>
                           </div>
-                          <div className="mt-1 text-[11px] text-[#475569]">{enc?.admittingDiagnosis || 'Clinical review'}</div>
-                          <div className="mt-1 text-[10px] text-[#64748B]">{obs ? `Last vitals ${new Date(obs.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Awaiting review'}</div>
+                          <div className="mt-1 text-[11px] text-slate-600">{enc?.admittingDiagnosis || 'Clinical review'}</div>
+                          <div className="mt-1 text-[10px] text-slate-500">{obs ? `Last vitals ${new Date(obs.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}` : 'Awaiting review'}</div>
                         </button>
                       );
                     })}

@@ -31,6 +31,10 @@ import {
   EvsSanitizationChecklist
 } from "@/types/hospital";
 
+import {
+  ENABLE_PLATFORM_DEMO_DATA,
+} from "../platform/mock-platform";
+
 import { 
   SEED_FACILITIES,
   SEED_MULTI_DEPARTMENTS,
@@ -118,6 +122,27 @@ export class TenantRepository {
         const raw = window.localStorage.getItem(TenantRepository.STORAGE_KEY);
         if (raw) {
           const data = JSON.parse(raw);
+          const demoFacilityIds = new Set([
+            "fac-st-jude",
+            "fac-apex-valley",
+            "fac-metro-diag",
+            "fac-bji-center",
+            "fac-bji-clinic",
+            "fac-riverview-south",
+            "fac-riverview-specialty"
+          ]);
+          const hasLegacyDemoSeed = Array.isArray(data?.facilities)
+            && data.facilities.some((facility: Partial<HealthcareFacility>) =>
+              demoFacilityIds.has(facility.id || "") || /BJI|St\. Jude|Riverview/i.test(facility.name || "")
+            );
+
+          if (!ENABLE_PLATFORM_DEMO_DATA || hasLegacyDemoSeed) {
+            this.clearAll();
+            window.localStorage.removeItem(TenantRepository.STORAGE_KEY);
+            this.persist();
+            return;
+          }
+
           if (data && Array.isArray(data.facilities) && data.facilities.length > 0) {
             this.clearAll();
 
@@ -143,8 +168,21 @@ export class TenantRepository {
           }
         }
       } catch (err) {
-        console.warn("Error hydrating from storage, falling back to seed:", err);
+        console.warn("Error hydrating from storage, clearing legacy data:", err);
+        this.clearAll();
+        if (typeof window !== "undefined") {
+          window.localStorage.removeItem(TenantRepository.STORAGE_KEY);
+        }
+        return;
       }
+    }
+
+    if (!ENABLE_PLATFORM_DEMO_DATA) {
+      this.clearAll();
+      if (typeof window !== "undefined") {
+        this.persist();
+      }
+      return;
     }
 
     this.seedInitialData();
@@ -246,6 +284,12 @@ export class TenantRepository {
 
   public resetToDefaults(): void {
     this.clearAll();
+    if (!ENABLE_PLATFORM_DEMO_DATA) {
+      if (typeof window !== "undefined") {
+        this.persist();
+      }
+      return;
+    }
     this.seedInitialData();
     if (typeof window !== "undefined") {
       this.persist();
@@ -253,6 +297,11 @@ export class TenantRepository {
   }
 
   private seedInitialData() {
+    if (!ENABLE_PLATFORM_DEMO_DATA) {
+      this.clearAll();
+      return;
+    }
+
     // 1. Facilities
     SEED_FACILITIES.forEach((f) => this.facilities.set(f.id, f));
 

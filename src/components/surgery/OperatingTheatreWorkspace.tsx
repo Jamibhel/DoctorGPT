@@ -720,8 +720,8 @@ export const OperatingTheatreWorkspace: React.FC = () => {
                     </div>
                     <div className="text-right">
                       <div className="text-[10px] text-slate-500">Net Fluid Balance:</div>
-                      <span className={`font-mono font-bold text-xs ${netFluidBalance >= 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
-                        {netFluidBalance > 0 ? `+${netFluidBalance}` : netFluidBalance} mL
+                      <span className={`font-mono font-bold text-xs ${netBalance >= 0 ? 'text-emerald-700' : 'text-amber-700'}`}>
+                        {netBalance > 0 ? `+${netBalance}` : netBalance} mL
                       </span>
                     </div>
                   </div>

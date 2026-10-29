@@ -16,11 +16,12 @@ import { Encounter, AuditEntry, Patient } from "@/types/clinical";
 /**
  * Persist an approved or active encounter to Cloud Firestore
  */
-export async function saveEncounterToFirestore(encounter: Encounter): Promise<boolean> {
+export async function saveEncounterToFirestore(encounter: Encounter, facilityId: string): Promise<boolean> {
   try {
     const encounterRef = doc(db, "encounters", encounter.id);
     await setDoc(encounterRef, {
       ...encounter,
+      facilityId,
       updatedAt: serverTimestamp(),
     }, { merge: true });
     return true;
@@ -33,12 +34,13 @@ export async function saveEncounterToFirestore(encounter: Encounter): Promise<bo
 /**
  * Retrieve past encounters for a patient from Firestore
  */
-export async function getPatientEncountersFromFirestore(patientId: string): Promise<Encounter[]> {
+export async function getPatientEncountersFromFirestore(patientId: string, facilityId: string): Promise<Encounter[]> {
   try {
     const encountersRef = collection(db, "encounters");
     const q = query(
       encountersRef, 
       where("patientId", "==", patientId),
+      where("facilityId", "==", facilityId),
       limit(20)
     );
     const snap = await getDocs(q);
@@ -52,11 +54,13 @@ export async function getPatientEncountersFromFirestore(patientId: string): Prom
 /**
  * Log an audit trail item to Cloud Firestore for immutable remote compliance
  */
-export async function logAuditToFirestore(entry: AuditEntry): Promise<boolean> {
+export async function logAuditToFirestore(entry: AuditEntry, facilityId: string, actorId: string): Promise<boolean> {
   try {
     const auditRef = collection(db, "audit_logs");
     await addDoc(auditRef, {
       ...entry,
+      facilityId,
+      actorId,
       serverTime: serverTimestamp(),
     });
     return true;

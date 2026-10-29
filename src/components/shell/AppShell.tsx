@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import Image from "next/image";
 import { useSession } from "@/lib/auth/session-context";
 import { usePWA } from "@/lib/pwa/pwa-context";
 import { useHospital } from "@/lib/state/hospital-store";
@@ -261,9 +262,7 @@ export const AppShell: React.FC<AppShellProps> = ({
           )}
 
           <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-bji-sm bg-bji-green-600 flex items-center justify-center text-white font-bold text-xs shadow-xs">
-              +
-            </div>
+            <Image src="/icons/bji-medisupport-192.png" alt="" aria-hidden="true" width={24} height={24} className="rounded-sm" />
             <div className="hidden sm:block">
               <div className="flex items-center gap-1.5">
                 <span className="text-xs font-bold tracking-tight text-bji-slate-900">
@@ -700,7 +699,7 @@ export const AppShell: React.FC<AppShellProps> = ({
                   <div className="text-bji-green-400 font-mono">BJI Cloud • Encrypted</div>
                 </div>
               ) : (
-                <div className="text-center font-bold text-bji-green-400">BJI</div>
+                <Image src="/icons/bji-medisupport-192.png" alt="BJI MediSupport" width={24} height={24} className="mx-auto rounded-sm" />
               )}
             </div>
           </aside>

@@ -55,6 +55,8 @@ export interface GeneratedDocument {
 
 export interface AuditEntry {
   id: string;
+  facilityId?: string;
+  actorId?: string;
   timestamp: string;
   actor: string;
   action: string;
@@ -117,6 +119,7 @@ export interface Patient {
 
 export interface Encounter {
   id: string;
+  facilityId?: string;
   patientId: string;
   date: string;
   clinician: string;

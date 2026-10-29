@@ -97,12 +97,14 @@ export const HieExchangeBridge: React.FC<HieExchangeBridgeProps> = ({
     }, 1300);
 
     setTimeout(() => {
-      const bundle = FhirMapperService.generatePatientBundle(patient, {
+      const bundle = FhirMapperService.generatePatientBundle(
+        patient,
         encounters,
         vitals,
+        labs,
         orders,
-        labs
-      });
+        'collection'
+      );
 
       const newLog: ExchangeLog = {
         id: `HIE-TX-${Math.floor(1000 + Math.random() * 9000)}`,
@@ -112,7 +114,7 @@ export const HieExchangeBridge: React.FC<HieExchangeBridgeProps> = ({
         payloadType: payloadType,
         status: "Ingested",
         hash: "e4c27a91..." + Math.random().toString(16).substring(2, 6),
-        resourceCount: bundle.total
+        resourceCount: bundle.total ?? 0
       };
 
       setLogs(prev => [newLog, ...prev]);

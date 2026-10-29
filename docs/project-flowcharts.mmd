@@ -1,0 +1,68 @@
+flowchart TD
+  subgraph PUBLIC[Public entry]
+    Home["Home /"]
+    Signup["/signup · admin account"]
+    Login["/login · staff sign-in"]
+    Forgot["/forgot-password"]
+  end
+
+  subgraph IDENTITY[Identity and tenant setup · implemented]
+    Policy["Firebase-enforced password policy\n12+ chars · upper · lower · number · symbol"]
+    Verify["Verify email"]
+    Onboard["/onboarding"]
+    Recover{"One tenant matches verified admin email?"}
+    Reconnect["Reclaim admin UID\nReuse saved organization + facility"]
+    Create["Create organization + facility + admin profile"]
+    Auth["Firebase Auth\nactive verified staff profile"]
+  end
+
+  subgraph OPERATIONS[Current tenant screens]
+    Workspace["/workspace\norganization + facility overview"]
+    Facilities["/facilities"]
+    Staff["Pending staff record\nAuth invite not yet wired"]
+    Patients["/patients"]
+    Register["Register patient + intake appointment"]
+    Schedule["Schedule appointment"]
+    Firestore[("Firestore\norganizations · facilities · staff\npatients · appointments")]
+    Detail["/facilities/[facilityId]\nplaceholder detail"]
+    Portal["/portal\npatient session required"]
+  end
+
+  subgraph CLINICAL[Clinical UI components · not mounted by current routes]
+    Gate["Next integration gate\nmount HospitalProvider + authenticated role gate"]
+    Desktop["Desktop clinical workspace"]
+    Mobile["Mobile clinical app"]
+    Views["Command · patient chart · registry · CPOE\nmedications · pharmacy · beds · imaging\nemergency · theatre · scribe · FHIR · facility ops"]
+    Tasks["Task overlays\nADT · vitals · dose · bed transfer\ncode blue · surgical checklist · audit"]
+  end
+
+  Home --> Signup
+  Home --> Login
+  Signup --> Policy --> Verify --> Onboard --> Recover
+  Recover -->|Yes| Reconnect --> Auth
+  Recover -->|No| Create --> Auth
+  Login --> Auth
+  Forgot -->|Reset email| Login
+  Auth --> Workspace
+  Workspace --> Facilities
+  Facilities --> Staff
+  Facilities --> Detail
+  Workspace --> Patients
+  Patients --> Register --> Firestore
+  Patients --> Schedule --> Firestore
+  Firestore --> Portal
+  Workspace -. "planned integration" .-> Gate
+  Gate -. "after provider + route wiring" .-> Desktop
+  Gate -. "after provider + route wiring" .-> Mobile
+  Desktop -.-> Views
+  Desktop -.-> Tasks
+  Mobile -. "rounds · patient · vitals · eMAR · dictation · SBAR · labs" .-> Tasks
+
+  classDef public fill:#e8f2ff,stroke:#2b5c92,color:#142d48,stroke-width:1.5px
+  classDef identity fill:#e9f7ef,stroke:#2d6a4f,color:#173f2e,stroke-width:1.5px
+  classDef operations fill:#fff4df,stroke:#986314,color:#56380a,stroke-width:1.5px
+  classDef clinical fill:#f0ebf8,stroke:#675184,color:#35234a,stroke-width:1.5px,stroke-dasharray:5 4
+  class Home,Signup,Login,Forgot public
+  class Policy,Verify,Onboard,Recover,Reconnect,Create,Auth identity
+  class Workspace,Facilities,Staff,Patients,Register,Schedule,Firestore,Detail,Portal operations
+  class Gate,Desktop,Mobile,Views,Tasks clinical

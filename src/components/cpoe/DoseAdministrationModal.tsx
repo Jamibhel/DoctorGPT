@@ -36,7 +36,9 @@ export const DoseAdministrationModal: React.FC<DoseAdministrationModalProps> = (
 
   const [actionType, setActionType] = useState<'GIVEN' | 'HELD' | 'REFUSED'>('GIVEN');
   const [doseGiven, setDoseGiven] = useState(order?.medicationDetails?.dosage || "");
-  const [routeGiven, setRouteGiven] = useState(order?.medicationDetails?.route || "ORAL");
+  const [routeGiven, setRouteGiven] = useState<
+    'ORAL' | 'IV' | 'SUBCUTANEOUS' | 'TOPICAL' | 'INHALATION'
+  >(order?.medicationDetails?.route || "ORAL");
   const [injectionSite, setInjectionSite] = useState("Right Upper Arm (Deltoid)");
   const [heldReason, setHeldReason] = useState("");
   const [cosignedBy, setCosignedBy] = useState("");
@@ -279,13 +281,18 @@ export const DoseAdministrationModal: React.FC<DoseAdministrationModalProps> = (
                 <label className="block text-[11px] font-bold text-slate-700 uppercase tracking-wider mb-1">
                   Actual Route Administered
                 </label>
-                <input
-                  type="text"
+                <select
                   value={routeGiven}
-                  onChange={(e) => setRouteGiven(e.target.value)}
+                  onChange={(e) => setRouteGiven(e.target.value as 'ORAL' | 'IV' | 'SUBCUTANEOUS' | 'TOPICAL' | 'INHALATION')}
                   className="w-full bg-white border border-[#D7DEE7] text-xs rounded-bji px-3 py-2 outline-none focus:ring-1 focus:ring-blue-600 font-mono"
                   required
-                />
+                >
+                  <option value="ORAL">ORAL</option>
+                  <option value="IV">IV</option>
+                  <option value="SUBCUTANEOUS">SUBCUTANEOUS</option>
+                  <option value="TOPICAL">TOPICAL</option>
+                  <option value="INHALATION">INHALATION</option>
+                </select>
               </div>
             </div>
 

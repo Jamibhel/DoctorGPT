@@ -132,6 +132,8 @@ interface HospitalContextType {
   administerMedication: (params: {
     administrationId: string;
     status: 'GIVEN' | 'NOT_GIVEN' | 'REFUSED' | 'HELD';
+    doseGiven?: string;
+    routeGiven?: string;
     heldReason?: string;
     injectionSite?: string;
     cosignedBy?: string;
@@ -194,7 +196,7 @@ const HospitalContext = createContext<HospitalContextType | null>(null);
 export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   // 1. Facilities
   const [facilities, setFacilities] = useState<HealthcareFacility[]>(() => tenantRepository.listFacilities());
-  const [activeFacilityId, setActiveFacilityId] = useState<string>("fac-st-jude");
+  const [activeFacilityId, setActiveFacilityId] = useState<string>("");
   const activeFacility = facilities.find((f) => f.id === activeFacilityId) || facilities[0];
 
   // 2. Tenant Scoped Entities
@@ -220,8 +222,8 @@ export const HospitalProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [surgicalCases, setSurgicalCases] = useState<SurgicalCase[]>(() => tenantRepository.getSurgicalCases(activeFacilityId));
 
   // Active selection
-  const [activePatientId, setActivePatientId] = useState<string>(() => tenantRepository.getPatients(activeFacilityId)[0]?.id || "");
-  const [activeEncounterId, setActiveEncounterId] = useState<string>(() => tenantRepository.getEncounters(activeFacilityId)[0]?.id || "");
+  const [activePatientId, setActivePatientId] = useState<string>("");
+  const [activeEncounterId, setActiveEncounterId] = useState<string>("");
 
   // Switch Facility Tenant
   const switchFacility = (newFacilityId: string) => {

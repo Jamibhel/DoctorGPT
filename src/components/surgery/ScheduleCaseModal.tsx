@@ -172,7 +172,7 @@ export const ScheduleCaseModal: React.FC<ScheduleCaseModalProps> = ({
             >
               {patients.map(p => (
                 <option key={p.id} value={p.id}>
-                  {p.lastName}, {p.firstName} (MRN: {p.mrn} • DOB: {p.dateOfBirth} • {p.gender})
+                  {p.lastName}, {p.firstName} (MRN: {p.mrn} • DOB: {p.dateOfBirth} • {p.sex})
                 </option>
               ))}
             </select>

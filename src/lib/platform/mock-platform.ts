@@ -63,12 +63,15 @@ export type Patient = {
 export type Appointment = {
   id: string;
   facilityId: string;
+  patientId?: string;
   patientName: string;
   clinician: string;
   time: string;
   type: string;
   status: AppointmentStatus;
 };
+
+export const ENABLE_PLATFORM_DEMO_DATA = false;
 
 export const platformSummary = {
   organizations: 6,

@@ -1,9 +1,13 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
+import { onAuthStateChanged } from "firebase/auth";
 import { UserRole, Permission, Patient } from "@/types/hospital";
 import { checkRolePermission, ROLE_PERMISSIONS, PATIENT_PORTAL_PERMISSIONS } from "./permissions-engine";
 import { tenantRepository } from "../db/tenant-repository";
+import { ENABLE_PLATFORM_DEMO_DATA } from "../platform/mock-platform";
+import { auth } from "@/lib/firebase/config";
+import { getFirebaseStaffProfile, isFirebaseReady, reauthenticateFirebaseStaff, signInFirebaseStaff, signOutFirebaseStaff } from "@/lib/firebase/tenant-service";
 
 export interface SessionUser {
   id: string;
@@ -66,6 +70,7 @@ export const SEED_SESSION_USERS: SessionUser[] = [
   {
     id: "Practitioner/rad-watson",
     name: "Dr. Emily Watson, MD",
+    email: "e.watson@bjihospital.org",
     role: "RADIOLOGIST",
     title: "Diagnostic Radiologist",
     departmentId: "DEPT-SJM-RAD",
@@ -105,10 +110,10 @@ interface SessionContextType {
   inactivityLimitSeconds: number;
   hasPermission: (permission: Permission) => boolean;
   lockSession: () => void;
-  unlockSession: (enteredPin: string) => boolean;
+  unlockSession: (credential: string) => Promise<boolean>;
   switchUser: (userId: string) => void;
   switchSessionType: (type: SessionType, patientId?: string) => void;
-  loginStaff: (email: string, pin: string, facilityId: string) => boolean;
+  loginStaff: (email: string, password: string, facilityId?: string) => Promise<boolean>;
   loginPatient: (mrn: string, dob: string, facilityId: string) => boolean;
   secureLogout: () => void;
   resetInactivityTimer: () => void;
@@ -116,10 +121,33 @@ interface SessionContextType {
 
 const SessionContext = createContext<SessionContextType | null>(null);
 
+const EMPTY_SESSION_USER: SessionUser = {
+  id: "",
+  name: "",
+  email: "",
+  role: "PHYSICIAN",
+  title: "",
+  departmentId: "",
+  departmentName: "",
+  facilityId: "",
+  facilityName: "",
+  facilityType: "HOSPITAL",
+  pin: "",
+  avatarInitials: "",
+};
+
+const toSessionFacilityType = (value: unknown): SessionUser["facilityType"] => {
+  const normalized = String(value || "HOSPITAL").toUpperCase();
+  if (["HOSPITAL", "CLINIC", "MEDICAL_CENTER", "DIAGNOSTIC_CENTER", "SPECIALIST_CENTER"].includes(normalized)) {
+    return normalized as SessionUser["facilityType"];
+  }
+  return "HOSPITAL";
+};
+
 export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [sessionType, setSessionType] = useState<SessionType>("STAFF");
-  const [currentUser, setCurrentUser] = useState<SessionUser>(SEED_SESSION_USERS[0]);
+  const [currentUser, setCurrentUser] = useState<SessionUser>(() => (ENABLE_PLATFORM_DEMO_DATA ? SEED_SESSION_USERS[0] : EMPTY_SESSION_USER));
   const [patientUser, setPatientUser] = useState<Patient | null>(null);
   const [isLocked, setIsLocked] = useState(false);
   const [inactivityLimitSeconds] = useState(300); // 5 minutes inactivity timeout
@@ -137,32 +165,89 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   }, [currentUser]);
 
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const saved = localStorage.getItem("bji_medisupport_auth_session");
-        if (saved) {
-          const parsed = JSON.parse(saved);
-          if (parsed?.sessionType === "PATIENT" && parsed.patientUser) {
-            setPatientUser(parsed.patientUser);
-            setCurrentUser(SEED_SESSION_USERS[0]);
-            setSessionType("PATIENT");
-            setIsAuthenticated(true);
-            setIsLocked(false);
-            return;
-          }
+    if (!ENABLE_PLATFORM_DEMO_DATA || typeof window === "undefined") {
+      return;
+    }
 
-          if (parsed?.sessionType === "STAFF" && parsed.currentUser) {
-            setCurrentUser(parsed.currentUser);
-            setSessionType("STAFF");
-            setIsAuthenticated(true);
-            setIsLocked(false);
-          }
+    try {
+      const saved = localStorage.getItem("bji_medisupport_auth_session");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed?.sessionType === "PATIENT" && parsed.patientUser) {
+          setPatientUser(parsed.patientUser);
+          setCurrentUser(SEED_SESSION_USERS[0]);
+          setSessionType("PATIENT");
+          setIsAuthenticated(true);
+          setIsLocked(false);
+          return;
         }
-      } catch (err) {
-        console.warn("Failed to hydrate saved session:", err);
+
+        if (parsed?.sessionType === "STAFF" && parsed.currentUser) {
+          setCurrentUser(parsed.currentUser);
+          setSessionType("STAFF");
+          setIsAuthenticated(true);
+          setIsLocked(false);
+        }
       }
+    } catch (err) {
+      console.warn("Failed to hydrate saved session:", err);
     }
   }, []);
+
+  useEffect(() => {
+    if (!isFirebaseReady()) {
+      return;
+    }
+
+    return onAuthStateChanged(auth, (firebaseUser) => {
+      if (!firebaseUser) {
+        setCurrentUser(EMPTY_SESSION_USER);
+        setIsAuthenticated(false);
+        setIsLocked(false);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("bji_medisupport_auth_session");
+        }
+        return;
+      }
+
+      void (async () => {
+        const profile = await getFirebaseStaffProfile(firebaseUser.uid);
+        if (!profile) {
+          setCurrentUser(EMPTY_SESSION_USER);
+          setIsAuthenticated(false);
+          setIsLocked(false);
+          if (typeof window !== "undefined") {
+            localStorage.removeItem("bji_medisupport_auth_session");
+          }
+          return;
+        }
+
+        const staff = profile.staff;
+        const facility = profile.facility;
+        const restoredUser: SessionUser = {
+          id: staff.id,
+          name: staff.name,
+          email: staff.email,
+          role: staff.role as UserRole,
+          title: staff.role,
+          departmentId: staff.department,
+          departmentName: staff.department,
+          facilityId: staff.facilityId,
+          facilityName: String(facility.name || "Healthcare Facility"),
+          facilityType: toSessionFacilityType(facility.facilityType),
+          pin: "",
+          avatarInitials: staff.name.split(" ").map((part) => part[0]).join("").slice(0, 2).toUpperCase(),
+        };
+
+        setCurrentUser(restoredUser);
+        setSessionType("STAFF");
+        setIsAuthenticated(true);
+        setIsLocked(false);
+        setSecondsRemaining(inactivityLimitSeconds);
+        persistSession("STAFF", restoredUser, null);
+      })();
+    });
+  }, [inactivityLimitSeconds, persistSession]);
 
   const resetInactivityTimer = useCallback(() => {
     if (!isLocked) {
@@ -183,8 +268,12 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     );
   }, [currentUser]);
 
-  const unlockSession = (enteredPin: string): boolean => {
-    if (enteredPin === currentUser.pin || enteredPin === "1234" || enteredPin === "password123") {
+  const unlockSession = async (credential: string): Promise<boolean> => {
+    const authenticated = isFirebaseReady()
+      ? await reauthenticateFirebaseStaff(credential)
+      : credential === currentUser.pin;
+
+    if (authenticated) {
       setIsLocked(false);
       setSecondsRemaining(inactivityLimitSeconds);
       logAuthAudit(
@@ -216,6 +305,10 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
   };
 
   const switchUser = (userId: string) => {
+    if (!ENABLE_PLATFORM_DEMO_DATA) {
+      return;
+    }
+
     const repoStaff = tenantRepository.getStaff(currentUser.facilityId);
     const foundStaff = repoStaff.find(s => s.id === userId);
     if (foundStaff) {
@@ -310,15 +403,60 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
   };
 
-  const loginStaff = (email: string, pin: string, facilityId: string): boolean => {
+  const loginStaff = async (email: string, password: string, facilityId?: string): Promise<boolean> => {
+    const trimmedEmail = email.trim();
+    const submittedPassword = password;
+
+    if (isFirebaseReady()) {
+      try {
+        const firebaseUser = await signInFirebaseStaff({ email: trimmedEmail, password: submittedPassword, facilityId });
+        if (!firebaseUser) {
+          logAuthAudit(facilityId ?? "", trimmedEmail, trimmedEmail, "PHYSICIAN", "LOGIN_FAILED", "Invalid Firebase Staff Credentials");
+          return false;
+        }
+
+        const sessionUser: SessionUser = {
+          id: firebaseUser.id,
+          name: firebaseUser.name,
+          email: firebaseUser.email,
+          role: firebaseUser.role as UserRole,
+          title: firebaseUser.role === "PHYSICIAN" ? "Attending Physician" : firebaseUser.role === "FACILITY_ADMIN" ? "Facility Administrator" : firebaseUser.role,
+          departmentId: firebaseUser.department || "DEPT-Firebase",
+          departmentName: firebaseUser.department || "Clinical Services",
+          facilityId: firebaseUser.facilityId,
+          facilityName: firebaseUser.facilityName || currentUser.facilityName || "Healthcare Facility",
+          facilityType: toSessionFacilityType(firebaseUser.facilityType),
+          pin: "",
+          avatarInitials: firebaseUser.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase(),
+        };
+
+        setCurrentUser(sessionUser);
+        setSessionType("STAFF");
+        setIsAuthenticated(true);
+        setIsLocked(false);
+        setSecondsRemaining(inactivityLimitSeconds);
+        persistSession("STAFF", sessionUser, null);
+        logAuthAudit(firebaseUser.facilityId, sessionUser.id, sessionUser.name, sessionUser.role, "LOGIN_SUCCESS", "Firebase Staff Credentials Verified");
+        return true;
+      } catch (error) {
+        console.warn("Firebase staff authentication failed:", error);
+        logAuthAudit(facilityId ?? "", trimmedEmail, trimmedEmail, "PHYSICIAN", "LOGIN_FAILED", "Firebase Authentication Failed");
+        return false;
+      }
+    }
+
+    if (!facilityId) {
+      return false;
+    }
+
     // 1. Check against repository staff (supports dynamically created staff)
-    const authResult = tenantRepository.authenticateStaff(email, pin, facilityId);
+    const authResult = tenantRepository.authenticateStaff(trimmedEmail, submittedPassword, facilityId);
     if (authResult.success && authResult.staff) {
       const s = authResult.staff;
       const sessionUser: SessionUser = {
         id: s.id,
         name: s.name,
-        email: s.email || email,
+        email: s.email || trimmedEmail,
         role: s.role,
         title: s.title || (s.role === 'PHYSICIAN' ? 'Attending Physician' : s.role === 'FACILITY_ADMIN' ? 'Facility Administrator' : s.role),
         departmentId: s.departmentId || 'DEPT-1',
@@ -326,7 +464,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         facilityId: s.facilityId,
         facilityName: authResult.facility?.name || 'Healthcare Facility',
         facilityType: (authResult.facility?.type as any) || 'HOSPITAL',
-        pin: s.password || '1234',
+        pin: s.password || trimmedPassword || '1234',
         avatarInitials: s.name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase()
       };
       setCurrentUser(sessionUser);
@@ -340,7 +478,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     }
 
     const invitedMembers = (() => {
-      if (typeof window === "undefined") return [] as Array<{ facilityId: string; email: string; role: UserRole; name: string; password?: string; title?: string; departmentId?: string; departmentName?: string; facilityName?: string; facilityType?: SessionUser["facilityType"] }>;
+      if (typeof window === "undefined") return [] as Array<{ facilityId: string; email: string; role: UserRole; name: string; password?: string; status?: "active" | "invited"; title?: string; departmentId?: string; departmentName?: string; facilityName?: string; facilityType?: SessionUser["facilityType"] }>;
       try {
         const raw = localStorage.getItem("doctorgpt_invited_staff");
         const parsed = raw ? JSON.parse(raw) : [];
@@ -351,7 +489,7 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     })();
 
     const matchedInvited = invitedMembers.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase() && (u.password === pin || pin === "1234" || pin === "password123")
+      (u) => u.status === "active" && u.email.toLowerCase() === trimmedEmail.toLowerCase() && Boolean(u.password) && u.password === trimmedPassword
     );
     if (matchedInvited) {
       const user: SessionUser = {
@@ -365,8 +503,8 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
         facilityId,
         facilityName: matchedInvited.facilityName || "Healthcare Facility",
         facilityType: matchedInvited.facilityType || "HOSPITAL",
-        pin: matchedInvited.password || "1234",
-        avatarInitials: matchedInvited.name.split(" ").map((n) => n[0]).join("").slice(0, 2).toUpperCase(),
+        pin: matchedInvited.password!,
+        avatarInitials: matchedInvited.name.split(" ").map((n: string) => n[0]).join("").slice(0, 2).toUpperCase(),
       };
       setCurrentUser(user);
       setSessionType("STAFF");
@@ -378,22 +516,24 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
       return true;
     }
 
-    // 2. Fallback check SEED_SESSION_USERS
-    const matched = SEED_SESSION_USERS.find(
-      (u) => u.email.toLowerCase() === email.toLowerCase() && (u.pin === pin || pin === "1234" || pin === "password123")
-    );
-    if (matched) {
-      const user = { ...matched, facilityId };
-      setCurrentUser(user);
-      setSessionType("STAFF");
-      setIsAuthenticated(true);
-      setIsLocked(false);
-      setSecondsRemaining(inactivityLimitSeconds);
-      persistSession("STAFF", user, null);
-      logAuthAudit(facilityId, matched.id, matched.name, matched.role, "LOGIN_SUCCESS", "Staff Credentials Verified");
-      return true;
+    // 2. Fallback check SEED_SESSION_USERS only when demo mode is explicitly enabled.
+    if (ENABLE_PLATFORM_DEMO_DATA) {
+      const matched = SEED_SESSION_USERS.find(
+        (u) => u.email.toLowerCase() === trimmedEmail.toLowerCase() && (u.pin === submittedPassword || submittedPassword === "1234" || submittedPassword === "password123")
+      );
+      if (matched) {
+        const user = { ...matched, facilityId };
+        setCurrentUser(user);
+        setSessionType("STAFF");
+        setIsAuthenticated(true);
+        setIsLocked(false);
+        setSecondsRemaining(inactivityLimitSeconds);
+        persistSession("STAFF", user, null);
+        logAuthAudit(facilityId, matched.id, matched.name, matched.role, "LOGIN_SUCCESS", "Staff Credentials Verified");
+        return true;
+      }
     }
-    logAuthAudit(facilityId, email, email, "PHYSICIAN", "LOGIN_FAILED", "Invalid Staff Credentials");
+    logAuthAudit(facilityId, trimmedEmail, trimmedEmail, "PHYSICIAN", "LOGIN_FAILED", "Invalid Staff Credentials");
     return false;
   };
 
@@ -425,7 +565,9 @@ export const SessionProvider: React.FC<{ children: React.ReactNode }> = ({ child
     if (typeof window !== "undefined") {
       localStorage.removeItem("bji_medisupport_auth_session");
     }
+    void signOutFirebaseStaff();
     setPatientUser(null);
+    setCurrentUser(EMPTY_SESSION_USER);
     setSessionType("STAFF");
     setIsAuthenticated(false);
     setIsLocked(true);

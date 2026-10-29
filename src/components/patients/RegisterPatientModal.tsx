@@ -302,7 +302,7 @@ export const RegisterPatientModal: React.FC<RegisterPatientModalProps> = ({
                       const dept = departments.find(d => d.id === b.wardId);
                       return (
                         <option key={b.id} value={b.id}>
-                          {b.roomNumber} - Bed {b.bedNumber} ({dept?.name || "General Ward"}) {b.requiresTelemetry ? "[Telemetry]" : ""}
+                          {b.roomNumber} - Bed {b.bedNumber} ({dept?.name || "General Ward"}) {(b.requiresTelemetry ?? b.telemetryEnabled) ? "[Telemetry]" : ""}
                         </option>
                       );
                     })}

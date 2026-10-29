@@ -1,9 +1,10 @@
-const CACHE_NAME = "bji-medisupport-v1";
+const CACHE_NAME = "bji-medisupport-v2";
 const STATIC_ASSETS = [
   "/",
   "/manifest.json",
-  "/icons/icon-192.svg",
-  "/icons/icon-512.svg"
+  "/icons/bji-medisupport-192.png",
+  "/icons/bji-medisupport-512.png",
+  "/brand/bji-medisupport-logo.mp4.mp4"
 ];
 
 // Install: Cache essential app shell assets

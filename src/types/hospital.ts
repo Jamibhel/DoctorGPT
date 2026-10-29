@@ -44,6 +44,8 @@ export type UserRole =
   | 'NURSE' 
   | 'PHARMACIST' 
   | 'RADIOLOGIST' 
+  | 'SURGEON'
+  | 'LAB_TECH'
   | 'HOSPITAL_ADMINISTRATOR'
   | 'FACILITY_ADMIN'
   | 'CLINICAL_STAFF';
@@ -75,6 +77,9 @@ export type Permission =
   | 'staff:read'
   | 'staff:manage'
   | 'facility:settings'
+  | 'facility:update_settings'
+  | 'facility:manage_wards'
+  | 'chart:write_notes'
   | 'audit:read';
 
 export interface RoleDefinition {
@@ -92,13 +97,14 @@ export interface StaffMember {
   name: string;
   role: UserRole;
   departmentId: string;
+  title?: string;
   npi?: string;
   licenseNumber?: string;
   pagerNumber?: string;
   email?: string;
   password?: string;
   onCall: boolean;
-  activeShift: 'DAY' | 'NIGHT' | 'SWING';
+  activeShift: 'DAY' | 'NIGHT' | 'SWING' | 'ROTATING';
   permissions?: Permission[];
 }
 
@@ -226,6 +232,7 @@ export interface HospitalBed {
   cleaningStartedAt?: string;
   isIcuEquipped: boolean;
   telemetryEnabled: boolean;
+  requiresTelemetry?: boolean;
   isBariatric?: boolean;
   isNegativePressure?: boolean;
   evsChecklist?: EvsSanitizationChecklist;

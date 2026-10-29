@@ -5,6 +5,7 @@ import { Patient, SoapNote, ActionItem, GeneratedDocument, ActionStatus, Encount
 import { ConsultationPreset } from "@/lib/data/sample-consultations";
 import { aiOrchestrator } from "@/lib/ai/orchestrator";
 import { saveEncounterToFirestore } from "@/lib/firebase/firestore";
+import { useSession } from "@/lib/auth/session-context";
 import { 
   Mic, 
   Sparkles, 
@@ -40,6 +41,7 @@ export const EncounterStudio: React.FC<EncounterStudioProps> = ({
   onSelectPreset,
   onLogAudit,
 }) => {
+  const { currentUser } = useSession();
   const [turns, setTurns] = useState(preset.dialogue);
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isGeneratingNote, setIsGeneratingNote] = useState(false);
@@ -145,7 +147,7 @@ export const EncounterStudio: React.FC<EncounterStudioProps> = ({
       auditTrail: []
     };
 
-    await saveEncounterToFirestore(encounterRecord);
+    await saveEncounterToFirestore(encounterRecord, currentUser.facilityId);
     onLogAudit("Encounter Approved & Committed", "Encounter signed and synchronized to Cloud Firestore.", "APPROVAL");
   };
 

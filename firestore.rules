@@ -1,0 +1,155 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function verifiedEmail() {
+      return signedIn() && request.auth.token.email_verified == true;
+    }
+
+    function hasStaffRecord() {
+      return signedIn()
+        && exists(/databases/$(database)/documents/staff/$(request.auth.uid));
+    }
+
+    function staffRecord() {
+      return get(/databases/$(database)/documents/staff/$(request.auth.uid)).data;
+    }
+
+    function belongsToFacility(facilityId) {
+      return hasStaffRecord()
+        && staffRecord().status == 'active'
+        && staffRecord().facilityId == facilityId;
+    }
+
+    function belongsToOrganization(organizationId) {
+      return hasStaffRecord()
+        && staffRecord().status == 'active'
+        && staffRecord().organizationId == organizationId;
+    }
+
+    function patientBelongsToFacility(patientId, facilityId) {
+      return exists(/databases/$(database)/documents/patients/$(patientId))
+        && get(/databases/$(database)/documents/patients/$(patientId)).data.facilityId == facilityId;
+    }
+
+    function isFacilityAdministrator(facilityId) {
+      return belongsToFacility(facilityId)
+        && staffRecord().role == 'HOSPITAL_ADMINISTRATOR';
+    }
+
+    match /staff/{staffId} {
+      allow get: if signedIn() && request.auth.uid == staffId
+        || belongsToFacility(resource.data.facilityId)
+        || verifiedEmail()
+          && resource.data.email == request.auth.token.email
+          && resource.data.role == 'HOSPITAL_ADMINISTRATOR';
+      allow list: if belongsToFacility(resource.data.facilityId);
+      allow create: if verifiedEmail()
+        && request.auth.uid == staffId
+        && request.resource.data.id == staffId
+        && request.resource.data.email == request.auth.token.email
+        && request.resource.data.role == 'HOSPITAL_ADMINISTRATOR'
+        && request.resource.data.status == 'active'
+        && getAfter(/databases/$(database)/documents/organizations/$(request.resource.data.organizationId)).data.ownerUid == request.auth.uid
+        && getAfter(/databases/$(database)/documents/organizations/$(request.resource.data.organizationId)).data.adminEmail == request.auth.token.email
+        && getAfter(/databases/$(database)/documents/facilities/$(request.resource.data.facilityId)).data.organizationId == request.resource.data.organizationId
+        || verifiedEmail()
+        && isFacilityAdministrator(request.resource.data.facilityId)
+        && request.resource.data.id == staffId
+        && request.resource.data.organizationId == staffRecord().organizationId
+        && request.resource.data.status == 'invited'
+        && !('password' in request.resource.data)
+        && !('pin' in request.resource.data);
+      allow delete: if verifiedEmail()
+        && resource.data.id == staffId
+        && resource.data.email == request.auth.token.email
+        && resource.data.role == 'HOSPITAL_ADMINISTRATOR'
+        && get(/databases/$(database)/documents/organizations/$(resource.data.organizationId)).data.ownerUid == staffId
+        && get(/databases/$(database)/documents/organizations/$(resource.data.organizationId)).data.adminEmail == request.auth.token.email;
+      allow update: if false;
+    }
+
+    match /facilities/{facilityId} {
+      allow get, list: if belongsToFacility(resource.data.id)
+        || verifiedEmail()
+          && get(/databases/$(database)/documents/organizations/$(resource.data.organizationId)).data.adminEmail == request.auth.token.email;
+      allow create: if verifiedEmail()
+        && request.resource.data.id == facilityId
+        && ((!exists(/databases/$(database)/documents/staff/$(request.auth.uid))
+          && getAfter(/databases/$(database)/documents/organizations/$(request.resource.data.organizationId)).data.ownerUid == request.auth.uid
+          && getAfter(/databases/$(database)/documents/staff/$(request.auth.uid)).data.facilityId == facilityId
+          && getAfter(/databases/$(database)/documents/staff/$(request.auth.uid)).data.organizationId == request.resource.data.organizationId)
+          || (isFacilityAdministrator(get(/databases/$(database)/documents/staff/$(request.auth.uid)).data.facilityId)
+            && request.resource.data.organizationId == staffRecord().organizationId));
+      allow update, delete: if false;
+    }
+
+    match /organizations/{organizationId} {
+      allow get: if belongsToOrganization(organizationId)
+        || verifiedEmail() && resource.data.adminEmail == request.auth.token.email;
+      allow list: if belongsToOrganization(organizationId)
+        || verifiedEmail() && resource.data.adminEmail == request.auth.token.email;
+      allow create: if verifiedEmail()
+        && !exists(/databases/$(database)/documents/staff/$(request.auth.uid))
+        && request.resource.data.id == organizationId
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.adminEmail == request.auth.token.email
+        && request.resource.data.status == 'active'
+        && getAfter(/databases/$(database)/documents/staff/$(request.auth.uid)).data.organizationId == organizationId
+        && getAfter(/databases/$(database)/documents/facilities/$(getAfter(/databases/$(database)/documents/staff/$(request.auth.uid)).data.facilityId)).data.organizationId == organizationId;
+      allow update: if verifiedEmail()
+        && resource.data.adminEmail == request.auth.token.email
+        && request.resource.data.adminEmail == resource.data.adminEmail
+        && request.resource.data.ownerUid == request.auth.uid
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['ownerUid']);
+      allow delete: if false;
+    }
+
+    match /encounters/{encounterId} {
+      allow get, list: if belongsToFacility(resource.data.facilityId);
+      allow create: if belongsToFacility(request.resource.data.facilityId);
+      allow update: if belongsToFacility(resource.data.facilityId)
+        && request.resource.data.facilityId == resource.data.facilityId;
+      allow delete: if false;
+    }
+
+    match /audit_logs/{auditId} {
+      allow get, list: if belongsToFacility(resource.data.facilityId);
+      allow create: if belongsToFacility(request.resource.data.facilityId)
+        && request.resource.data.actorId == request.auth.uid;
+      allow update, delete: if false;
+    }
+
+    match /patients/{patientId} {
+      allow get, list: if belongsToFacility(resource.data.facilityId);
+      allow create: if belongsToFacility(request.resource.data.facilityId)
+        && request.resource.data.id == patientId;
+      allow update: if belongsToFacility(resource.data.facilityId)
+        && request.resource.data.facilityId == resource.data.facilityId
+        && request.resource.data.id == patientId;
+      allow delete: if false;
+    }
+
+    match /appointments/{appointmentId} {
+      allow get, list: if belongsToFacility(resource.data.facilityId);
+      allow create: if belongsToFacility(request.resource.data.facilityId)
+        && request.resource.data.id == appointmentId
+        && (!('patientId' in request.resource.data)
+          || patientBelongsToFacility(request.resource.data.patientId, request.resource.data.facilityId));
+      allow update: if belongsToFacility(resource.data.facilityId)
+        && request.resource.data.facilityId == resource.data.facilityId
+        && request.resource.data.id == appointmentId
+        && (!('patientId' in request.resource.data)
+          || patientBelongsToFacility(request.resource.data.patientId, request.resource.data.facilityId));
+      allow delete: if false;
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

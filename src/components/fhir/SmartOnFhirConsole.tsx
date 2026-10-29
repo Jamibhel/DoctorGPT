@@ -60,19 +60,23 @@ export const SmartOnFhirConsole: React.FC<SmartOnFhirConsoleProps> = ({
 
     // Call simulated SMART FHIR query
     setTimeout(() => {
+      const params = Object.fromEntries(
+        Object.entries(activeEndpoint.params ?? {}).filter(([, value]) => value !== undefined).map(([key, value]) => [key, String(value)])
+      ) as Record<string, string>;
+
       const res = FhirMapperService.simulateFhirRestQuery(
         activeEndpoint.endpoint,
-        activeEndpoint.params || {},
+        params,
         {
           patient,
           encounters,
-          vitals,
-          orders,
-          labs
+          observations: vitals,
+          labs,
+          orders
         }
       );
 
-      setResponseOutput(res.body);
+      setResponseOutput(res.data);
       setResponseHeaders(res.headers);
       setResponseStatus(res.status);
       setLatency(res.latencyMs);

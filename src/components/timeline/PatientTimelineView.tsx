@@ -90,9 +90,9 @@ export const PatientTimelineView: React.FC = () => {
             patientId: lab.patientId,
             encounterId: "Encounter/current",
             type: "LAB_RESULTED",
-            timestamp: lab.collectionTime,
-            authorId: lab.performedBy,
-            authorName: lab.performedBy.split('/').pop() || "Laboratory Technologist",
+            timestamp: lab.collectedAt,
+            authorId: lab.performingLab,
+            authorName: lab.performingLab.split('/').pop() || "Laboratory Technologist",
             authorRole: "LAB_TECH",
             departmentId: "DIAGNOSTIC_PATHOLOGY",
             title: `Laboratory: ${lab.testName} (${lab.flag || 'Normal'})`,
@@ -102,7 +102,7 @@ export const PatientTimelineView: React.FC = () => {
               value: lab.value,
               unit: lab.unit,
               flag: lab.flag,
-              isCritical: lab.isCritical
+              isCritical: lab.flag === "CRITICAL_HIGH" || lab.flag === "CRITICAL_LOW"
             }
           });
         }
@@ -128,7 +128,7 @@ export const PatientTimelineView: React.FC = () => {
             description: `Impression: ${study.impression}. Findings: ${study.findings}`,
             metadata: {
               modality: study.modality,
-              accessionNumber: study.accessionNumber,
+              accessionNumber: study.id,
               isCriticalAlert: study.isCriticalAlert
             }
           });
@@ -268,7 +268,8 @@ export const PatientTimelineView: React.FC = () => {
         ) : (
           filteredEvents.map((evt) => {
             const badge = getEventBadge(evt.type);
-            const isHighPriority = evt.type === "EMERGENCY_CODE_TRIGGERED" || evt.type === "CDS_ALERT_TRIGGERED" || (evt.metadata?.news2Score && evt.metadata.news2Score >= 7);
+            const news2Score = (evt.metadata as { news2Score?: number } | undefined)?.news2Score;
+            const isHighPriority = evt.type === "EMERGENCY_CODE_TRIGGERED" || evt.type === "CDS_ALERT_TRIGGERED" || (typeof news2Score === "number" && news2Score >= 7);
 
             return (
               <div key={evt.id} className="relative group">

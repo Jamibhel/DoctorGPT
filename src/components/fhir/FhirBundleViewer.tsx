@@ -36,7 +36,7 @@ export const FhirBundleViewer: React.FC<FhirBundleViewerProps> = ({ bundle, pati
       id: e.resource.id,
       validation: FhirMapperService.validateFhirResource(e.resource)
     }));
-    const totalValid = results.filter(r => r.validation.valid).length;
+    const totalValid = results.filter(r => r.validation.isValid).length;
     return {
       results,
       allValid: totalValid === results.length,
@@ -247,13 +247,13 @@ export const FhirBundleViewer: React.FC<FhirBundleViewerProps> = ({ bundle, pati
                     </div>
 
                     <div className="flex items-center space-x-3">
-                      {val.valid ? (
+                      {val.isValid ? (
                         <span className="text-[10px] text-emerald-400 bg-emerald-950/80 border border-emerald-800/80 px-2 py-0.5 rounded-bji flex items-center gap-1 font-mono">
                           <CheckCircle2 className="w-3 h-3 text-emerald-400" /> Valid FHIR R4
                         </span>
                       ) : (
                         <span className="text-[10px] text-amber-400 bg-amber-950/80 border border-amber-800/80 px-2 py-0.5 rounded-bji flex items-center gap-1 font-mono">
-                          <AlertTriangle className="w-3 h-3 text-amber-400" /> {val.errors.length} Warnings
+                          <AlertTriangle className="w-3 h-3 text-amber-400" /> {val.issues.length} Warnings
                         </span>
                       )}
                       <span className="text-[10px] text-slate-500 font-mono">
@@ -292,11 +292,11 @@ export const FhirBundleViewer: React.FC<FhirBundleViewerProps> = ({ bundle, pati
                   {/* Expanded JSON Inspector */}
                   {isExpanded && (
                     <div className="p-3 border-t border-slate-800 bg-slate-950">
-                      {val.errors.length > 0 && (
+                      {val.issues.length > 0 && (
                         <div className="mb-2 p-2 bg-amber-950/40 border border-amber-800/60 rounded-bji text-[11px] text-amber-300">
                           <strong className="block text-amber-200 mb-1">Conformance Warnings:</strong>
                           <ul className="list-disc list-inside space-y-0.5">
-                            {val.errors.map((err, errIdx) => (
+                            {val.issues.map((err, errIdx) => (
                               <li key={errIdx}>{err}</li>
                             ))}
                           </ul>

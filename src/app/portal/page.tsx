@@ -4,9 +4,10 @@ import Link from "next/link";
 import { useSession } from "@/lib/auth/session-context";
 import { usePlatform } from "@/lib/platform/platform-store";
 import { tenantRepository } from "@/lib/db/tenant-repository";
+import { formatAppointmentTime, findMatchingPlatformPatient } from "@/lib/platform/platform-operations";
 
 export default function PatientPortalPage() {
-  const { appointments, activeFacility } = usePlatform();
+  const { appointments, patients, activeFacility } = usePlatform();
   const { patientUser, sessionType, secureLogout } = useSession();
 
   if (sessionType !== "PATIENT" || !patientUser) {
@@ -26,9 +27,18 @@ export default function PatientPortalPage() {
     );
   }
 
-  const portalAppointments = appointments.filter(
-    (appointment) => appointment.facilityId === patientUser.facilityId && appointment.patientName === `${patientUser.firstName} ${patientUser.lastName}`
-  );
+  const linkedPatient = findMatchingPlatformPatient(patients, {
+    facilityId: patientUser.facilityId,
+    mrn: patientUser.mrn,
+    firstName: patientUser.firstName,
+    lastName: patientUser.lastName,
+  });
+  const patientFullName = `${patientUser.firstName} ${patientUser.lastName}`;
+  const portalAppointments = appointments.filter((appointment) => {
+    if (appointment.facilityId !== patientUser.facilityId) return false;
+    if (appointment.patientId) return appointment.patientId === linkedPatient?.id;
+    return appointment.patientName === patientFullName;
+  });
   const encounters = tenantRepository.getEncounters(patientUser.facilityId, patientUser.id);
   const activeEncounter = encounters[0] ?? null;
 
@@ -80,7 +90,7 @@ export default function PatientPortalPage() {
                   <div key={appointment.id} className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-4">
                     <div>
                       <div className="font-semibold text-slate-900">{appointment.type}</div>
-                      <div className="mt-1 text-sm text-slate-600">{appointment.time}</div>
+                      <div className="mt-1 text-sm text-slate-600">{formatAppointmentTime(appointment.time)}</div>
                     </div>
                     <span className="rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
                       {appointment.status}

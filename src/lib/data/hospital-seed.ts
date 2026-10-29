@@ -26,6 +26,7 @@ import { calculateNEWS2 } from "../services/news2";
 export const SEED_DEPARTMENTS: HospitalDepartment[] = [
   {
     id: "DEPT-MED-SURG",
+    facilityId: "fac-st-jude",
     name: "3rd Floor Medical-Surgical Ward",
     type: "MED_SURG",
     floor: 3,
@@ -37,6 +38,7 @@ export const SEED_DEPARTMENTS: HospitalDepartment[] = [
   },
   {
     id: "DEPT-ICU",
+    facilityId: "fac-st-jude",
     name: "Intensive Care Unit (ICU)",
     type: "INTENSIVE_CARE",
     floor: 4,
@@ -48,6 +50,7 @@ export const SEED_DEPARTMENTS: HospitalDepartment[] = [
   },
   {
     id: "DEPT-EMERGENCY",
+    facilityId: "fac-st-jude",
     name: "Emergency Department & Trauma",
     type: "EMERGENCY",
     floor: 1,
@@ -59,6 +62,7 @@ export const SEED_DEPARTMENTS: HospitalDepartment[] = [
   },
   {
     id: "DEPT-ENDOCRINE",
+    facilityId: "fac-st-jude",
     name: "Endocrine & Metabolic Outpatient Clinic",
     type: "ENDOCRINOLOGY",
     floor: 2,

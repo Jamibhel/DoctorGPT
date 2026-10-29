@@ -2,10 +2,11 @@ import React from "react";
 import { cn } from "@/lib/utils";
 import { AlertCircle, AlertTriangle, CheckCircle2, Info, X } from "lucide-react";
 
-export type AlertSeverity = "critical" | "warning" | "info" | "success";
+export type AlertSeverity = "critical" | "danger" | "warning" | "info" | "success";
 
 export interface AlertProps extends React.HTMLAttributes<HTMLDivElement> {
   severity?: AlertSeverity;
+  tone?: AlertSeverity;
   title: string;
   description?: React.ReactNode;
   action?: React.ReactNode;
@@ -15,7 +16,8 @@ export interface AlertProps extends React.HTMLAttributes<HTMLDivElement> {
 
 export const Alert: React.FC<AlertProps> = ({
   className,
-  severity = "info",
+  severity,
+  tone,
   title,
   description,
   action,
@@ -23,8 +25,15 @@ export const Alert: React.FC<AlertProps> = ({
   icon,
   ...props
 }) => {
+  const resolvedSeverity = severity ?? tone ?? "info";
+
   const severityStyles: Record<AlertSeverity, { container: string; iconColor: string; defaultIcon: React.ReactNode }> = {
     critical: {
+      container: "bg-bji-red-50/90 border-bji-red-300 text-bji-red-950",
+      iconColor: "text-bji-red-600",
+      defaultIcon: <AlertCircle className="w-4 h-4" />,
+    },
+    danger: {
       container: "bg-bji-red-50/90 border-bji-red-300 text-bji-red-950",
       iconColor: "text-bji-red-600",
       defaultIcon: <AlertCircle className="w-4 h-4" />,
@@ -46,7 +55,7 @@ export const Alert: React.FC<AlertProps> = ({
     },
   };
 
-  const current = severityStyles[severity];
+  const current = severityStyles[resolvedSeverity];
 
   return (
     <div
